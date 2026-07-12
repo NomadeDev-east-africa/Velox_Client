@@ -104,7 +104,7 @@ class RestaurantInfoBigCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                isFreeDelivery ? "Free" : "Paid",
+                "500 FDJ",
                 style: Theme.of(context).textTheme.labelSmall,
               ),
             ],

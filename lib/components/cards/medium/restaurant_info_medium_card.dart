@@ -75,7 +75,7 @@ class RestaurantInfoMediumCard extends StatelessWidget {
                 ),
                 const SmallDot(),
                 Text(
-                  "Free delivery",
+                  "500 FDJ",
                   style: Theme.of(context)
                       .textTheme
                       .labelMedium!

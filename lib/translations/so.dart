@@ -12,7 +12,8 @@ const Map<String, String> so = {
   'all_restaurants': 'Dhammaan makhaayadaha',
   'most_popular': 'Caanshiyada',
   'open_now': 'Hadda furan',
-  'free_delivery': 'Gaarsiinta bilaash',
+  'free_delivery': 'Gaarsiinta 500 FDJ', // TODO: Vérifier
+  'free_delivery_desc': 'Dalabyadaada oo dhan', // TODO: Vérifier
   'new': 'Cusub',
   'promotions': 'Ku xigeenada',
   'near_me': 'Ii dhow',
@@ -44,7 +45,7 @@ const Map<String, String> so = {
   'delivery_time': 'Waqtiga gaarsiinta',
   'minutes': 'Daqiiqado',
   'delivery_fee': 'Lacagta gaarsiinta',
-  'free': 'Bilaash',
+  'free': '500 FDJ',
 
   // Panier / Commande
   'your_order': 'Dalabkaaga',

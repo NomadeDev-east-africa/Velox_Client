@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../components/rating_with_counter.dart';
 import '../../../../constants.dart';
 import '../../../../translations/app_translations.dart';
 import '../../../../models/restaurant.dart';
-import '../../../../services/menu_service.dart';
+import '../../../../providers/all_providers.dart';
 
-class RestaurantInfo extends StatefulWidget {
+class RestaurantInfo extends ConsumerWidget {
   final Restaurant restaurant;
 
   const RestaurantInfo({
@@ -15,50 +16,47 @@ class RestaurantInfo extends StatefulWidget {
   });
 
   @override
-  State<RestaurantInfo> createState() => _RestaurantInfoState();
-}
-
-class _RestaurantInfoState extends State<RestaurantInfo> {
-  int _averageTime = 25;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAverageTime();
-  }
-
-  Future<void> _loadAverageTime() async {
-    final time = await MenuService().getAveragePreparationTime(widget.restaurant.id);
-    if (mounted) {
-      setState(() {
-        _averageTime = time;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isFav = ref.watch(
+      favoritesNotifierProvider.select((ids) => ids.contains(restaurant.id)),
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: defaultPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            widget.restaurant.name,
-            style: Theme.of(context).textTheme.headlineMedium,
-            maxLines: 1,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  restaurant.name,
+                  style: Theme.of(context).textTheme.headlineMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                onPressed: () => ref
+                    .read(favoritesNotifierProvider.notifier)
+                    .toggleFavorite(restaurant.id),
+                icon: Icon(
+                  isFav ? Icons.favorite : Icons.favorite_border,
+                  color: isFav ? Colors.redAccent : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: defaultPadding / 2),
           Text(
-            widget.restaurant.address,
+            restaurant.address,
             style: Theme.of(context).textTheme.bodyMedium,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: defaultPadding / 2),
           RatingWithCounter(
-            rating: widget.restaurant.rating,
-            numOfRating: widget.restaurant.totalOrders,
+            rating: restaurant.rating,
+            numOfRating: restaurant.totalOrders,
           ),
           const SizedBox(height: defaultPadding),
           Row(
@@ -71,7 +69,7 @@ class _RestaurantInfoState extends State<RestaurantInfo> {
               const SizedBox(width: defaultPadding),
               DeliveryInfo(
                 iconSrc: "assets/icons/clock.svg",
-                text: "$_averageTime",
+                text: "35",
                 subText: tr('minutes'),
               ),
               const Spacer(),

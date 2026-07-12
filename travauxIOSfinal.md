@@ -159,3 +159,107 @@ Texte rédigé pour le champ "Notes" (App Review Information) :
 
 - **Build iOS = macOS uniquement.** Toute future modification de code nécessitant un nouvel IPA devra repasser par ce Mac (ou un autre Mac avec Xcode) — impossible depuis Windows.
 - Gestion de la fiche App Store Connect, TestFlight, testeurs = 100% web, accessible depuis n'importe quel navigateur (Windows OK).
+
+---
+
+## Session UI/UX (2026-07-12) — corrections diverses + favoris restaurants
+
+Testé au fil de l'eau sur iPhone mus (build release réinstallé via `xcrun devicectl`
+après chaque lot de modifs) puis validé aussi sur le deuxième iPhone.
+
+### 1. Texte "Livraison gratuite" → "500 FDJ" (4 endroits, 5 langues)
+La livraison n'est pas gratuite (500 FDJ), mais le texte l'affichait comme telle :
+- Bannière promo accueil (`promotion_banner.dart`) : clé `free_delivery` corrigée dans
+  `fr/en/ar/so/aa.dart` ; clé `free_delivery_desc` (manquante partout, affichait le nom
+  brut de la clé à l'écran) ajoutée dans les 5 langues.
+- Carte restaurant grande et moyenne (`restaurant_info_big_card.dart`,
+  `restaurant_info_medium_card.dart`) : "Free"/"Paid"/"Free delivery" → "500 FDJ" en dur.
+- Page détail restaurant (`restaurant_info.dart`) : clé `free` ("Gratuit") → "500 FDJ"
+  dans les 5 langues.
+
+### 2. Icône Apple invisible sur le bouton de connexion
+`social_button.dart` place une icône dans un badge blanc de 28×28 (12×12 utile après
+padding). `Icon(Icons.apple)` ne se redimensionne pas comme les SVG (Facebook/Google)
+et débordait hors du badge à taille 22 → apparaissait décalée/coupée ("pomme pas au
+centre, vers le bas"). Fix : couleur passée en noir (`sign_in_screen.dart`) puis icône
+enveloppée dans un `FittedBox` pour qu'elle se redimensionne et se centre comme les
+autres icônes.
+
+### 3. Page détail restaurant : temps de livraison fixé à 35 min
+`restaurant_info.dart` calculait dynamiquement une moyenne des temps de préparation des
+plats (`MenuService.getAveragePreparationTime`, ex: 20 min pour un restaurant donné).
+Remplacé par une valeur fixe "35" (décision utilisateur), et le calcul dynamique
+devenu mort a été supprimé (le widget est repassé de `StatefulWidget` à
+`StatelessWidget`/`ConsumerWidget`).
+
+### 4. Catégories accueil + écran "By Categories" : navigation corrigée
+Cliquer sur une catégorie (accueil ou écran "Voir tout" → "By Categories") ouvrait la
+page d'**un seul restaurant** tiré au hasard (celui du plat représentatif choisi pour
+l'illustration). Créé `CategoryItemsScreen` (`home_food/category_items_screen.dart`) :
+liste tous les plats de la catégorie, tous restaurants confondus (nom du restaurant
+affiché au-dessus de chaque plat). Branché depuis :
+- `_CategoryRow` sur l'accueil (`home_screen_food.dart`)
+- `CategoryCard` sur l'écran "By Categories" (`featured/components/body.dart`) — le
+  nom du restaurant affiché sur la vignette a aussi été retiré (la catégorie n'est pas
+  liée à un seul restaurant)
+- Section "Catégories" ajoutée aux résultats de `FoodSearchScreen`
+
+### 5. Recherche (page restaurant) scopée au restaurant
+L'icône recherche sur la page détail restaurant ouvrait la recherche **globale** de
+restaurants (`search_screen.dart` / `SearchScreen`), pas très utile depuis la page d'un
+restaurant précis. Créé `RestaurantMenuSearchScreen`
+(`details/restaurant_menu_search_screen.dart`) : recherche uniquement parmi les plats
+du restaurant courant (nom + catégorie du plat). Branché sur l'icône recherche de
+`details_screen.dart`. `SearchForm` (`search_screen.dart`) a reçu un paramètre
+`hintText` optionnel pour permettre un texte différent ("Rechercher un plat...").
+**Bug corrigé après premier test** : l'écran n'avait pas d'`AppBar` donc pas de bouton
+retour visible — ajouté avec le nom du restaurant en titre.
+
+### 6. Recherche accueil (`FoodSearchScreen`) élargie
+La recherche ne couvrait que restaurants (nom) et plats (nom/description). Ajout :
+matching plat étendu à la catégorie du plat, et nouvelle section "Catégories"
+(catégories distinctes matchant la requête, tap → `CategoryItemsScreen`).
+
+### 7. "Voir tout" retiré de la section "Meilleurs choix"
+`_sectionHeader` (`home_screen_food.dart`) rendait toujours le bouton "VOIR TOUT" ;
+le paramètre `onTap` est passé en optionnel (`VoidCallback?`) et le bouton n'est
+affiché que s'il est fourni. Retiré uniquement pour "MEILLEURS CHOIX".
+
+### 8. Icônes "Portefeuille"/"Paiements" retirées de l'accueil
+Actions rapides de `home_screen_app.dart` : les deux entrées `payments`/`wallet`
+(toutes deux "coming soon", non fonctionnelles) supprimées. Seule "Historique" reste.
+
+### 9. Prix VTC : 200 FDJ/km
+`mock_taxi_data.dart` : `pricePerKm` des deux véhicules (Standard, Confort) passé de
+50/70 à **200** FDJ/km (`basePrice` inchangé : 500/650 FDJ).
+
+### 10. Cœur "restaurant favori" ajouté sur la page détail + recherche
+L'infrastructure existait déjà (`favorites_notifier.dart`, page
+`favorite_restaurants_screen.dart` dans le profil) mais aucun bouton cœur n'était
+présent en dehors des listes accueil ("Meilleurs choix", "Tous les restaurants").
+Ajouté :
+- `restaurant_info.dart` (page détail) : cœur à côté du nom du restaurant, widget
+  passé en `ConsumerWidget` pour lire/écrire `favoritesNotifierProvider`.
+- `food_search_screen.dart` : cœur sur chaque résultat "Restaurants" (`_restaurantTile`,
+  wrappé dans un `Consumer` local).
+
+**Bug découvert en testant sur device réel** : le cœur se remplissait un instant au tap
+puis revenait vide, et rien n'était sauvegardé dans "Restaurants favoris" (profil).
+Cause réelle : **règle de sécurité Firestore**, pas un bug de code. Dans
+`firestore.rules`, `match /users/{userId} { allow update: ... && onlyFields([...]) }`
+ne contient pas `favoriteRestaurants` dans la liste blanche des champs modifiables —
+Firestore rejette donc l'écriture (`FieldValue.arrayUnion`/`arrayRemove` sur ce champ
+via `set(merge:true)`), et `FavoritesNotifier.toggleFavorite` fait un rollback de l'état
+optimiste local suite à l'erreur, ce qui donne visuellement "le cœur se vide tout
+seul". **Fix identifié mais pas encore appliqué depuis ce Mac** : ajouter
+`'favoriteRestaurants'` à la liste `onlyFields` du match `users/{userId}` — à faire
+via l'agent/machine qui gère réellement le déploiement de `firestore.rules` (voir
+prompt dédié fourni séparément), pour éviter d'écraser des changements de règles faits
+ailleurs et non synchronisés sur ce Mac.
+
+### À faire ensuite
+
+- Appliquer + déployer le fix Firestore ci-dessus (champ `favoriteRestaurants`)
+- Build + upload TestFlight de la version **1.0.6** une fois le fix Firestore déployé
+  et vérifié (sinon les favoris resteront cassés en prod/TestFlight même si l'UI est
+  correcte)

@@ -11,7 +11,8 @@ const Map<String, String> fr = {
   'all_restaurants': 'Tous les restaurants',
   'most_popular': 'Plus populaires',
   'open_now': 'Ouvert maintenant',
-  'free_delivery': 'Livraison gratuite',
+  'free_delivery': 'Livraison à 500 FDJ',
+  'free_delivery_desc': 'Sur toutes vos commandes',
   'new': 'Nouveau',
   'promotions': 'Promotions',
   'near_me': 'Près de moi',
@@ -43,7 +44,7 @@ const Map<String, String> fr = {
   'delivery_time': 'Temps de livraison',
   'minutes': 'Minutes',
   'delivery_fee': 'Frais de livraison',
-  'free': 'Gratuit',
+  'free': '500 FDJ',
 
   // Panier / Commande
   'your_order': 'Votre commande',

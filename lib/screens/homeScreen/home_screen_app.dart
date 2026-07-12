@@ -482,30 +482,6 @@ class _HomeScreenAppState extends ConsumerState<HomeScreenApp> {
           ),
         ),
       },
-      {
-        'icon': Icons.payment_rounded,
-        'label': tr('payments'),
-        'onTap': () => ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${tr('payments')} — ${tr('coming_soon')}'),
-            backgroundColor: c.surfaceTop,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-      },
-      {
-        'icon': Icons.account_balance_wallet_rounded,
-        'label': tr('wallet'),
-        'onTap': () => ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${tr('wallet')} — ${tr('coming_soon')}'),
-            backgroundColor: c.surfaceTop,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-      },
     ];
 
     return Column(

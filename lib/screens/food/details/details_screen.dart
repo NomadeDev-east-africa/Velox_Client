@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../components/floating_cart_button.dart';
 import '../../../constants.dart';
 import '../../../translations/app_translations.dart';
-import '../search/search_screen.dart';
+import 'restaurant_menu_search_screen.dart';
 import 'components/featured_items.dart';
 import 'components/iteams.dart';
 import 'components/restaurant_info.dart';
@@ -181,7 +181,7 @@ class DetailsScreen extends StatelessWidget {
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const SearchScreen(),
+                builder: (context) => RestaurantMenuSearchScreen(restaurant: restaurant),
               ),
             ),
           ),

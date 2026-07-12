@@ -8,10 +8,10 @@ import 'package:nomade_client/components/floating_cart_button.dart';
 import 'package:nomade_client/models/menu_item.dart';
 import 'package:nomade_client/models/restaurant.dart';
 import 'package:nomade_client/screens/food/details/details_screen.dart';
+import 'package:nomade_client/screens/food/home_food/category_items_screen.dart';
 import 'package:nomade_client/screens/food/featured/featured_screen.dart';
 import 'package:nomade_client/screens/food/search/food_search_screen.dart';
 import 'package:nomade_client/services/menu_service.dart';
-import 'package:nomade_client/services/restaurant_service.dart';
 import 'package:nomade_client/translations/app_translations.dart';
 import 'package:nomade_client/providers/all_providers.dart';
 import 'package:nomade_client/theme/app_colors.dart';
@@ -134,10 +134,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     _sectionHeader(
                       'MEILLEURS CHOIX',
                       c: c,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const FeaturedScreen()),
-                      ),
                     ),
                     const SizedBox(height: 16),
                     _PopularList(c: c),
@@ -171,7 +167,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 // SECTION HEADER
 // ════════════════════════════════════════════════════════════
 
-Widget _sectionHeader(String title, {required VoidCallback onTap, required AppColors c}) {
+Widget _sectionHeader(String title, {VoidCallback? onTap, required AppColors c}) {
   return Padding(
     padding: const EdgeInsets.symmetric(horizontal: 20),
     child: Row(
@@ -186,18 +182,19 @@ Widget _sectionHeader(String title, {required VoidCallback onTap, required AppCo
             letterSpacing: -0.5,
           ),
         ),
-        GestureDetector(
-          onTap: onTap,
-          child: Text(
-            'VOIR TOUT',
-            style: GoogleFonts.spaceGrotesk(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: c.primary,
-              letterSpacing: 2,
+        if (onTap != null)
+          GestureDetector(
+            onTap: onTap,
+            child: Text(
+              'VOIR TOUT',
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: c.primary,
+                letterSpacing: 2,
+              ),
             ),
           ),
-        ),
       ],
     ),
   );
@@ -342,9 +339,7 @@ class _CategoryRow extends StatefulWidget {
 
 class _CategoryRowState extends State<_CategoryRow> {
   final MenuService _menuService = MenuService();
-  final RestaurantService _restaurantService = RestaurantService();
   Map<String, MenuItem> _categoryMenus = {};
-  Map<String, Restaurant?> _categoryRestaurants = {};
   List<String> _categoryKeys = [];
   bool _isLoading = true;
 
@@ -378,20 +373,9 @@ class _CategoryRowState extends State<_CategoryRow> {
           picked[entry.key] = withImg[rng.nextInt(withImg.length)];
         }
       }
-      final entries = picked.entries.toList();
-      final uniqueIds = entries.map((e) => e.value.restaurantId).toSet().toList();
-      final fetched = await Future.wait(
-        uniqueIds.map((id) => _restaurantService.getRestaurantById(id)),
-      );
-      final byId = {
-        for (var i = 0; i < uniqueIds.length; i++) uniqueIds[i]: fetched[i],
-      };
       if (!mounted) return;
       setState(() {
         _categoryMenus = picked;
-        _categoryRestaurants = {
-          for (final e in entries) e.key: byId[e.value.restaurantId],
-        };
         _categoryKeys = picked.keys.toList();
         _isLoading = false;
       });
@@ -430,19 +414,16 @@ class _CategoryRowState extends State<_CategoryRow> {
       itemBuilder: (context, i) {
         final cat = _categoryKeys[i];
         final menu = _categoryMenus[cat]!;
-        final restaurant = _categoryRestaurants[cat];
         final imageUrl = menu.imageUrl;
         final hasImage = imageUrl != null && imageUrl.isNotEmpty;
 
         return GestureDetector(
           onTap: () {
-            if (restaurant != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => DetailsScreen(restaurant: restaurant)),
-              );
-            }
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => CategoryItemsScreen(category: cat)),
+            );
           },
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 6),

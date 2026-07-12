@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import '/../components/scalton/big_card_scalton.dart';
 import '/../../constants.dart';
-import '/../../services/restaurant_service.dart';
 import '/../../services/menu_service.dart';
 import '/../../models/menu_item.dart';
-import '/../../models/restaurant.dart';
-import '../../details/details_screen.dart';
+import '../../home_food/category_items_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:math';
 
@@ -18,9 +16,7 @@ class Body extends StatefulWidget {
 
 class _BodyState extends State<Body> {
   final MenuService _menuService = MenuService();
-  final RestaurantService _restaurantService = RestaurantService();
   Map<String, MenuItem> _categoryMenus = {};
-  Map<String, Restaurant?> _categoryRestaurants = {};
   bool _isLoading = true;
 
   @override
@@ -72,23 +68,10 @@ class _BodyState extends State<Body> {
         }
       }
 
-      // 4. Charger les restaurants (dédupliqués, en parallèle)
-      final uniqueIds = categoryMenus.values.map((m) => m.restaurantId).toSet().toList();
-      final fetched = await Future.wait(
-        uniqueIds.map((id) => _restaurantService.getRestaurantById(id)),
-      );
-      final restaurantById = {
-        for (var i = 0; i < uniqueIds.length; i++) uniqueIds[i]: fetched[i],
-      };
-      final Map<String, Restaurant?> categoryRestaurants = {
-        for (final e in categoryMenus.entries) e.key: restaurantById[e.value.restaurantId],
-      };
-
       if (!mounted) return;
 
       setState(() {
         _categoryMenus = categoryMenus;
-        _categoryRestaurants = categoryRestaurants;
         _isLoading = false;
       });
 
@@ -133,24 +116,18 @@ class _BodyState extends State<Body> {
             itemBuilder: (context, index) {
               final category = _categoryMenus.keys.elementAt(index);
               final menu = _categoryMenus[category]!;
-              final restaurant = _categoryRestaurants[category];
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: defaultPadding),
                 child: CategoryCard(
                   category: category,
                   menu: menu,
-                  restaurant: restaurant,
-                  onTap: () {
-                    if (restaurant != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => DetailsScreen(restaurant: restaurant),
-                        ),
-                      );
-                    }
-                  },
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CategoryItemsScreen(category: category),
+                    ),
+                  ),
                 ),
               );
             },
@@ -164,14 +141,12 @@ class _BodyState extends State<Body> {
 class CategoryCard extends StatelessWidget {
   final String category;
   final MenuItem menu;
-  final Restaurant? restaurant;
   final VoidCallback onTap;
 
   const CategoryCard({
     super.key,
     required this.category,
     required this.menu,
-    required this.restaurant,
     required this.onTap,
   });
 
@@ -236,20 +211,6 @@ class CategoryCard extends StatelessWidget {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          if (restaurant != null) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              restaurant!.name,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium!
-                                  .copyWith(
-                                color: Colors.white.withValues(alpha:0.9),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
                         ],
                       ),
                     ),

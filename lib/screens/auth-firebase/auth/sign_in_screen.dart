@@ -200,7 +200,10 @@ class _SignInScreenState extends State<SignInScreen> {
                     AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
-                    : const Icon(Icons.apple, color: Colors.white, size: 22),
+                    : const FittedBox(
+                  fit: BoxFit.contain,
+                  child: Icon(Icons.apple, color: Colors.black),
+                ),
               ),
               const SizedBox(height: defaultPadding),
 

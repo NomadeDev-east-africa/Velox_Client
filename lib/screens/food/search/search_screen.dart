@@ -199,12 +199,14 @@ class SearchForm extends StatelessWidget {
   final TextEditingController controller;
   final Function(String) onChanged;
   final Function(String) onSubmitted;
+  final String hintText;
 
   const SearchForm({
     super.key,
     required this.controller,
     required this.onChanged,
     required this.onSubmitted,
+    this.hintText = "Rechercher un restaurant...",
   });
 
   @override
@@ -216,7 +218,7 @@ class SearchForm extends StatelessWidget {
       style: Theme.of(context).textTheme.labelLarge,
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(
-        hintText: "Rechercher un restaurant...",
+        hintText: hintText,
         contentPadding: kTextFieldPadding,
         prefixIcon: Padding(
           padding: const EdgeInsets.all(8.0),

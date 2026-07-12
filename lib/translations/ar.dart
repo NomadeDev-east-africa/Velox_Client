@@ -11,7 +11,8 @@ const Map<String, String> ar = {
   'all_restaurants': 'جميع المطاعم',
   'most_popular': 'الأكثر شعبية',
   'open_now': 'مفتوح الآن',
-  'free_delivery': 'توصيل مجاني',
+  'free_delivery': 'التوصيل بـ 500 فرنك جيبوتي',
+  'free_delivery_desc': 'على جميع طلباتك',
   'new': 'جديد',
   'promotions': 'العروض',
   'near_me': 'بالقرب مني',
@@ -43,7 +44,7 @@ const Map<String, String> ar = {
   'delivery_time': 'وقت التوصيل',
   'minutes': 'دقيقة',
   'delivery_fee': 'رسوم التوصيل',
-  'free': 'مجاني',
+  'free': '500 FDJ',
 
   // Panier / Commande
   'your_order': 'طلبك',

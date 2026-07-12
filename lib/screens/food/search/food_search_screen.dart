@@ -5,8 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:nomade_client/models/menu_item.dart';
 import 'package:nomade_client/models/restaurant.dart';
-import 'package:nomade_client/providers/theme_notifier.dart';
+import 'package:nomade_client/providers/all_providers.dart';
 import 'package:nomade_client/screens/food/details/details_screen.dart';
+import 'package:nomade_client/screens/food/home_food/category_items_screen.dart';
 import 'package:nomade_client/services/menu_service.dart';
 import 'package:nomade_client/services/restaurant_service.dart';
 import 'package:nomade_client/theme/app_colors.dart';
@@ -32,6 +33,7 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen> {
 
   List<Restaurant> _restaurantResults = [];
   List<MenuItem> _dishResults = [];
+  List<String> _categoryResults = [];
 
   bool _isLoading = true;
   String _query = '';
@@ -80,6 +82,7 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen> {
         _query = '';
         _restaurantResults = [];
         _dishResults = [];
+        _categoryResults = [];
       });
       return;
     }
@@ -92,9 +95,22 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen> {
           .where((m) =>
               _restaurantsById.containsKey(m.restaurantId) &&
               (m.name.toLowerCase().contains(q) ||
-                  m.description.toLowerCase().contains(q)))
+                  m.description.toLowerCase().contains(q) ||
+                  m.category.toLowerCase().contains(q)))
+          .toList();
+      _categoryResults = _allMenus
+          .map((m) => m.category)
+          .toSet()
+          .where((cat) => cat.toLowerCase().contains(q))
           .toList();
     });
+  }
+
+  void _openCategory(String category) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => CategoryItemsScreen(category: category)),
+    );
   }
 
   void _openRestaurant(Restaurant restaurant) {
@@ -180,7 +196,7 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen> {
       );
     }
 
-    if (_restaurantResults.isEmpty && _dishResults.isEmpty) {
+    if (_restaurantResults.isEmpty && _dishResults.isEmpty && _categoryResults.isEmpty) {
       return _placeholder(
         c,
         icon: Icons.search_off,
@@ -191,6 +207,12 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       children: [
+        if (_categoryResults.isNotEmpty) ...[
+          _sectionTitle(c, 'Catégories', _categoryResults.length),
+          const SizedBox(height: 8),
+          ..._categoryResults.map((cat) => _categoryTile(c, cat)),
+          const SizedBox(height: 16),
+        ],
         if (_restaurantResults.isNotEmpty) ...[
           _sectionTitle(c, 'Restaurants', _restaurantResults.length),
           const SizedBox(height: 8),
@@ -239,6 +261,38 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen> {
     );
   }
 
+  Widget _categoryTile(AppColors c, String category) {
+    return Card(
+      color: c.surfaceLow,
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: ListTile(
+        onTap: () => _openCategory(category),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            width: 52,
+            height: 52,
+            color: c.surfaceHigh,
+            child: Icon(Icons.category, color: c.onSurfaceVariant, size: 24),
+          ),
+        ),
+        title: Text(
+          category,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.spaceGrotesk(
+            fontWeight: FontWeight.w700,
+            color: c.onSurface,
+          ),
+        ),
+        trailing: Icon(Icons.chevron_right, color: c.onSurfaceVariant),
+      ),
+    );
+  }
+
   Widget _restaurantTile(AppColors c, Restaurant r) {
     return Card(
       color: c.surfaceLow,
@@ -271,7 +325,22 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen> {
             ),
           ],
         ),
-        trailing: Icon(Icons.chevron_right, color: c.onSurfaceVariant),
+        trailing: Consumer(
+          builder: (context, ref, _) {
+            final isFav = ref.watch(
+              favoritesNotifierProvider.select((ids) => ids.contains(r.id)),
+            );
+            return IconButton(
+              onPressed: () =>
+                  ref.read(favoritesNotifierProvider.notifier).toggleFavorite(r.id),
+              icon: Icon(
+                isFav ? Icons.favorite : Icons.favorite_border,
+                color: isFav ? Colors.redAccent : c.onSurfaceVariant,
+                size: 20,
+              ),
+            );
+          },
+        ),
       ),
     );
   }

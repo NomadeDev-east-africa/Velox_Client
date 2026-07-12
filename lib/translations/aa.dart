@@ -12,7 +12,8 @@ const Map<String, String> aa = {
   'all_restaurants': 'Maqaayito kee', // TODO: Vérifier
   'most_popular': 'Kaa caana',
   'open_now': 'Yabke marra',
-  'free_delivery': 'Buusak maba',
+  'free_delivery': 'Buusak 500 FDJ', // TODO: Vérifier
+  'free_delivery_desc': 'Dakke kaa inkih', // TODO: Vérifier
   'new': 'Barri',
   'promotions': 'Lekme',
   'near_me': 'Kay geela',
@@ -44,7 +45,7 @@ const Map<String, String> aa = {
   'delivery_time': 'Buuse saate',
   'minutes': 'Daqiiqo',
   'delivery_fee': 'Buuse gaaxa',
-  'free': 'Maba',
+  'free': '500 FDJ',
 
   // Panier / Commande
   'your_order': 'Tee dakke',
