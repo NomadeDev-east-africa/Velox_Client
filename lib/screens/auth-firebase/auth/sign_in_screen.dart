@@ -8,6 +8,7 @@ import 'package:nomade_client/screens/HomeScreen/home_screen_app.dart';
 import '../../../components/buttons/social_button.dart';
 import '../../../components/welcome_text.dart';
 import '../../../constants.dart';
+import 'complete_phone_screen.dart';
 import 'sign_up_screen.dart';
 import 'components/sign_in_form.dart';
 import '../phoneLogin/phone_login_screen.dart';
@@ -34,13 +35,7 @@ class _SignInScreenState extends State<SignInScreen> {
         // ✅ Rafraîchir le token FCM après connexion Google
         await NotificationService().refreshTokenForUser();
         if (!mounted) return;
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const HomeScreenApp(),
-          ),
-              (_) => false,
-        );
+        await _navigateAfterSocialLogin(user.uid);
       }
     } catch (e) {
       if (mounted) {
@@ -68,13 +63,7 @@ class _SignInScreenState extends State<SignInScreen> {
       if (user != null && mounted) {
         await NotificationService().refreshTokenForUser();
         if (!mounted) return;
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const HomeScreenApp(),
-          ),
-              (_) => false,
-        );
+        await _navigateAfterSocialLogin(user.uid);
       }
     } catch (e) {
       if (mounted) {
@@ -91,6 +80,21 @@ class _SignInScreenState extends State<SignInScreen> {
         setState(() => _isLoadingApple = false);
       }
     }
+  }
+
+  /// Google/Apple ne fournissent jamais de numéro de téléphone : on force sa
+  /// saisie avant d'accéder à l'app si le compte n'en a pas déjà un.
+  Future<void> _navigateAfterSocialLogin(String uid) async {
+    final hasPhone = await _authService.hasPhoneNumber(uid);
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            hasPhone ? const HomeScreenApp() : const CompletePhoneScreen(),
+      ),
+      (_) => false,
+    );
   }
 
   @override

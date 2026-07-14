@@ -8,6 +8,11 @@ import 'package:image_picker/image_picker.dart';
 import '../services/hive_service.dart';
 import '../services/notification_service.dart';
 import '../utils/local_cache.dart';
+import 'active_order_notifier.dart';
+import 'active_ride_notifier.dart';
+import 'address_notifier.dart';
+import 'cart_notifier.dart';
+import 'favorites_notifier.dart';
 
 // ═══════════════════════════════════════════════════════════════
 // ÉTAT
@@ -91,10 +96,11 @@ class UserState {
 class UserNotifier extends StateNotifier<UserState> {
   final FirebaseAuth      _auth      = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final Ref _ref;
 
   StreamSubscription<User?>? _authSubscription;
 
-  UserNotifier() : super(const UserState()) {
+  UserNotifier(this._ref) : super(const UserState()) {
     _initializeAuth();
   }
 
@@ -298,6 +304,15 @@ class UserNotifier extends StateNotifier<UserState> {
       // ✅ Vider le cache utilisateur SharedPreferences (garder darkMode/language)
       await LocalCache.clearUser();
 
+      // ✅ Réinitialiser les providers liés au compte (sinon leur état en
+      // mémoire — panier, course/commande active, favoris, adresses —
+      // reste celui du compte précédent jusqu'au prochain hot restart).
+      _ref.invalidate(cartProvider);
+      _ref.invalidate(activeRideProvider);
+      _ref.invalidate(activeOrderProvider);
+      _ref.invalidate(favoritesNotifierProvider);
+      _ref.invalidate(addressNotifierProvider);
+
       _clearUserData();
       debugPrint('✅ [UserNotifier] Déconnexion complète');
     } catch (e) {
@@ -318,6 +333,11 @@ class UserNotifier extends StateNotifier<UserState> {
       await _firestore.collection('users').doc(user.uid).delete();
       await HiveService.clearAllSession();
       await LocalCache.clearUser();
+      _ref.invalidate(cartProvider);
+      _ref.invalidate(activeRideProvider);
+      _ref.invalidate(activeOrderProvider);
+      _ref.invalidate(favoritesNotifierProvider);
+      _ref.invalidate(addressNotifierProvider);
       _clearUserData();
       debugPrint('✅ [UserNotifier] Compte supprimé');
     } catch (e) {
@@ -399,5 +419,5 @@ class UserNotifier extends StateNotifier<UserState> {
 
 final userNotifierProvider =
     StateNotifierProvider<UserNotifier, UserState>(
-  (ref) => UserNotifier(),
+  (ref) => UserNotifier(ref),
 );

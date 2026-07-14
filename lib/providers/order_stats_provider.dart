@@ -38,6 +38,19 @@ final orderStatsProvider = StreamProvider.autoDispose<OrderStats>((ref) {
   });
 });
 
+/// Nombre de courses VTC terminées du client connecté.
+final completedRidesCountProvider = StreamProvider.autoDispose<int>((ref) {
+  final userId = ref.watch(userNotifierProvider).userId;
+  if (userId == null) return Stream.value(0);
+
+  return FirebaseFirestore.instance
+      .collection('taxiRides')
+      .where('userId', isEqualTo: userId)
+      .where('status', isEqualTo: 'completed')
+      .snapshots()
+      .map((snapshot) => snapshot.docs.length);
+});
+
 /// Points DÉPENSÉS, stockés sur le doc `users/{uid}.redeemedPoints`.
 /// Incrémentés à chaque réduction appliquée au checkout.
 final redeemedPointsProvider = StreamProvider.autoDispose<int>((ref) {

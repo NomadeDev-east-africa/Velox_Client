@@ -567,6 +567,9 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
       case 'waafi':   return 'Waafi';
       case 'd_money': return 'D-Money';
       case 'cac_pay': return 'CAC Pay';
+      case 'bci':        return 'BCI';
+      case 'exim':       return 'EXIM Bank';
+      case 'dahab_plus': return 'Dahab+';
       case 'card':    return 'Carte bancaire';
       case 'mobile_wallet': return 'Mobile Money';
       default:        return tr('cash_label');
@@ -578,7 +581,10 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
       case 'waafi':
       case 'd_money':
       case 'cac_pay':
+      case 'dahab_plus':
       case 'mobile_wallet': return Icons.account_balance_wallet;
+      case 'bci':
+      case 'exim':          return Icons.account_balance;
       case 'card':          return Icons.credit_card;
       default:              return Icons.payments_outlined;
     }

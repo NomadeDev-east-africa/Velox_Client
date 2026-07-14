@@ -24,6 +24,14 @@ class AuthService {
   Stream<firebase_auth.User?> get authStateChanges =>
       _auth.authStateChanges();
 
+  /// Vérifie si l'utilisateur a un numéro de téléphone enregistré
+  /// (nécessaire après une connexion Google/Apple, qui n'en fournit pas).
+  Future<bool> hasPhoneNumber(String uid) async {
+    final doc = await _firestore.collection('users').doc(uid).get();
+    final phone = doc.data()?['phone'];
+    return phone is String && phone.trim().isNotEmpty;
+  }
+
   // ════════════════════════════════════════════════════════════
   // CONNEXION Email + Password
   // ════════════════════════════════════════════════════════════

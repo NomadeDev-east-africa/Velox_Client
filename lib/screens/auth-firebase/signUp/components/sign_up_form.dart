@@ -45,9 +45,7 @@ class _SignUpFormState extends State<SignUpForm> {
         email: _emailController.text,
         password: _passwordController.text,
         name: _nameController.text,
-        phone: _phoneController.text.isNotEmpty
-            ? _phoneController.text
-            : null,
+        phone: _phoneController.text,
       );
 
       if (user != null && mounted) {
@@ -120,13 +118,19 @@ class _SignUpFormState extends State<SignUpForm> {
           ),
           const SizedBox(height: defaultPadding),
 
-          // Phone Field (Optional)
+          // Phone Field (obligatoire)
           TextFormField(
             controller: _phoneController,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Entrez votre numéro de téléphone';
+              }
+              return null;
+            },
             textInputAction: TextInputAction.next,
             keyboardType: TextInputType.phone,
             decoration: const InputDecoration(
-              hintText: "+253 77 XX XX XX (optionnel)",
+              hintText: "+253 77 XX XX XX",
               prefixIcon: Icon(Icons.phone),
             ),
             enabled: !_isLoading,

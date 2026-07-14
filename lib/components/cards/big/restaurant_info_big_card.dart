@@ -89,19 +89,7 @@ class RestaurantInfoBigCard extends StatelessWidget {
                 padding: EdgeInsets.symmetric(horizontal: defaultPadding / 2),
                 child: SmallDot(),
               ),
-              SvgPicture.asset(
-                "assets/icons/delivery.svg",
-                height: 20,
-                width: 20,
-                colorFilter: ColorFilter.mode(
-                  Theme.of(context)
-                      .textTheme
-                      .bodyLarge!
-                      .color!
-                      .withValues(alpha: 0.5),
-                  BlendMode.srcIn,
-                ),
-              ),
+              const Icon(Icons.toll_rounded, color: kNeonGreen, size: 20),
               const SizedBox(width: 8),
               Text(
                 "500 FDJ",

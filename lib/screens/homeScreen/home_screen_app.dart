@@ -384,6 +384,10 @@ class _HomeScreenAppState extends ConsumerState<HomeScreenApp> {
     final totalSpent  = statsAsync.whenOrNull(data: (s) => s.totalSpent)  ?? 0.0;
     final isLoading   = statsAsync is AsyncLoading;
 
+    final ridesAsync = ref.watch(completedRidesCountProvider);
+    final totalRides = ridesAsync.whenOrNull(data: (r) => r) ?? 0;
+    final isRidesLoading = ridesAsync is AsyncLoading;
+
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 28, 20, 0),
       child: Column(
@@ -401,7 +405,7 @@ class _HomeScreenAppState extends ConsumerState<HomeScreenApp> {
           const SizedBox(height: 16),
           Row(
             children: [
-              _buildStatItem('12', tr('rides').toUpperCase(), c),
+              _buildStatItem(isRidesLoading ? '—' : '$totalRides', tr('rides').toUpperCase(), c),
               _buildVerticalDivider(c),
               _buildStatItem(isLoading ? '—' : '$totalOrders', tr('orders').toUpperCase(), c),
               _buildVerticalDivider(c),
@@ -549,7 +553,7 @@ class _HomeScreenAppState extends ConsumerState<HomeScreenApp> {
       padding: const EdgeInsets.symmetric(vertical: 36),
       child: Center(
         child: Text(
-          'VELOX — SERVICE NATIONAL DJIBOUTIEN V1.0.0',
+          'VELOX Corp since 2026',
           style: TextStyle(
             color: c.onSurfaceVariant,
             fontSize: 10,

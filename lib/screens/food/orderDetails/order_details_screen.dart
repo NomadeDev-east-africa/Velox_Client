@@ -7,6 +7,7 @@ import 'package:nomade_client/constants.dart';
 import 'package:nomade_client/translations/app_translations.dart';
 import 'package:nomade_client/models/order_item.dart';
 import 'package:nomade_client/providers/all_providers.dart';
+import 'package:nomade_client/screens/auth-firebase/auth/complete_phone_screen.dart';
 import 'package:nomade_client/screens/auth-firebase/auth/sign_in_screen.dart';
 import 'package:nomade_client/screens/food/food_tracking/delivery_address_picker_screen.dart';
 import 'package:nomade_client/screens/food/pending_order/pending_order_screen.dart';
@@ -419,6 +420,9 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
       {'value': 'waafi', 'label': 'Waafi', 'icon': Icons.account_balance_wallet},
       {'value': 'd_money', 'label': 'D-Money', 'icon': Icons.account_balance_wallet},
       {'value': 'cac_pay', 'label': 'CAC Pay', 'icon': Icons.account_balance_wallet},
+      {'value': 'bci', 'label': 'BCI', 'icon': Icons.account_balance},
+      {'value': 'exim', 'label': 'EXIM Bank', 'icon': Icons.account_balance},
+      {'value': 'dahab_plus', 'label': 'Dahab+', 'icon': Icons.account_balance_wallet},
     ];
 
     return Column(
@@ -759,6 +763,19 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
       return;
     }
 
+    final userStateCheck = ref.read(userNotifierProvider);
+    final hasPhone = (userStateCheck.phone?.trim().isNotEmpty ?? false) ||
+        (userStateCheck.firebaseUser?.phoneNumber?.isNotEmpty ?? false);
+    if (!hasPhone) {
+      _showSnack('Merci de renseigner votre numéro de téléphone avant de commander',
+          backgroundColor: Colors.orange);
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const CompletePhoneScreen()),
+      );
+      return;
+    }
+
     final cart = ref.read(cartProvider);
     if (cart.isEmpty) {
       _showSnack(tr('cart_empty'), backgroundColor: Colors.orange);
@@ -776,7 +793,7 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
 
     final cartState = ref.read(cartProvider);
     final subtotal = cartState.items.fold<double>(0, (s, i) => s + i.totalPrice);
-    const deliveryFee = 200.0;
+    final deliveryFee = cartState.deliveryFee.toDouble();
     final pointsDiscount = _pointsApplied * kPointValue;
     final total = (subtotal + deliveryFee - pointsDiscount).clamp(0.0, double.infinity);
 

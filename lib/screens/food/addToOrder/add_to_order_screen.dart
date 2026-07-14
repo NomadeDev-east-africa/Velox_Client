@@ -67,11 +67,66 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
   int get _totalPrice =>
       ((widget.menuItem.price + _optionsSurcharge) * _quantity).toInt();
 
+  // ── TRI DES GROUPES (Formule/Taille → Sauces → Légumes → Suppléments) ──────
+  // Les groupes restent 100% pilotés par Firestore (nom/présence libres par
+  // restaurant) : on se contente de les réordonner par mot-clé quand ils sont
+  // présents sur ce plat, sans jamais en supposer l'existence.
+
+  static String _normalize(String s) => s
+      .toLowerCase()
+      .replaceAll(RegExp('[éèêë]'), 'e')
+      .replaceAll(RegExp('[àâ]'), 'a')
+      .replaceAll(RegExp('[ùû]'), 'u')
+      .replaceAll('ô', 'o')
+      .replaceAll(RegExp('[îï]'), 'i');
+
+  static int _categoryPriority(String name) {
+    final n = _normalize(name);
+    if (n.contains('formule') || n.contains('taille') || n.contains('format') || n.contains('size')) return 0;
+    if (n.contains('sauce')) return 1;
+    if (n.contains('legume') || n.contains('veget')) return 2;
+    if (n.contains('supplement') || n.contains('extra')) return 3;
+    return 4;
+  }
+
+  static bool _isSauceGroup(String name) => _normalize(name).contains('sauce');
+
+  static const _maxIncludedSauces = 2;
+
+  List<int> get _sortedGroupIndices {
+    final indices = List<int>.generate(_optionGroups.length, (i) => i);
+    indices.sort((a, b) {
+      final pa = _categoryPriority(_optionGroups[a].name);
+      final pb = _categoryPriority(_optionGroups[b].name);
+      if (pa != pb) return pa.compareTo(pb);
+      return a.compareTo(b);
+    });
+    return indices;
+  }
+
   // ── SÉLECTION DATA-DRIVEN ───────────────────────────────────────────────────
 
   void _toggleChoice(int groupIndex, int choiceIndex) {
     final group = _optionGroups[groupIndex];
     final selected = _groupSelections[groupIndex];
+
+    if (!group.isSingle &&
+        _isSauceGroup(group.name) &&
+        !selected.contains(choiceIndex) &&
+        selected.length >= _maxIncludedSauces) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(
+            'Maximum 2 sauces incluses. Pour plus de sauces, voir Suppléments.',
+            style: TextStyle(color: _c.onSurface),
+          ),
+          backgroundColor: _c.surfaceHigh,
+          behavior: SnackBarBehavior.floating,
+        ));
+      return;
+    }
+
     setState(() {
       if (group.isSingle) {
         // Radio : un seul choix. Si requis, on ne peut pas désélectionner.
@@ -111,7 +166,10 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(SnackBar(
-            content: Text('Veuillez choisir : ${missing.name}'),
+            content: Text(
+              'Veuillez choisir : ${missing.name}',
+              style: TextStyle(color: _c.onSurface),
+            ),
             backgroundColor: _c.surfaceHigh,
             behavior: SnackBarBehavior.floating,
           ));
@@ -456,9 +514,14 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
     final selected = _groupSelections[groupIndex].contains(choiceIndex);
     final isSingle = group.isSingle;
 
+    const animDuration = Duration(milliseconds: 220);
+    const animCurve = Curves.easeOut;
+
     return GestureDetector(
       onTap: () => _toggleChoice(groupIndex, choiceIndex),
-      child: Container(
+      child: AnimatedContainer(
+        duration: animDuration,
+        curve: animCurve,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         decoration: BoxDecoration(
           border: Border(
@@ -469,7 +532,9 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
         child: Row(
           children: [
             // Radio (cercle) pour single, checkbox (carré) pour multiple.
-            Container(
+            AnimatedContainer(
+              duration: animDuration,
+              curve: animCurve,
               width: 20,
               height: 20,
               decoration: BoxDecoration(
@@ -486,18 +551,21 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: Text(
-                choice.name.toUpperCase(),
+              child: AnimatedDefaultTextStyle(
+                duration: animDuration,
+                curve: animCurve,
                 style: TextStyle(
                   color: selected ? _c.onSurface : _c.onSurfaceVariant,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1,
                 ),
+                child: Text(choice.name.toUpperCase()),
               ),
             ),
-            Text(
-              choice.price > 0 ? '+ ${choice.price} FDJ' : 'INCLUS',
+            AnimatedDefaultTextStyle(
+              duration: animDuration,
+              curve: animCurve,
               style: TextStyle(
                 color: choice.price > 0
                     ? (selected ? _c.primary : _c.onSurfaceVariant)
@@ -505,6 +573,7 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
+              child: Text(choice.price > 0 ? '+ ${choice.price} FDJ' : 'INCLUS'),
             ),
           ],
         ),
@@ -587,8 +656,7 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
                   _buildPriceAndQuantity(),
                   // Plat sans optionGroups : aucune section d'options affichée.
                   if (_isDataDriven)
-                    ...List.generate(
-                        _optionGroups.length, _buildGroupSection),
+                    ..._sortedGroupIndices.map(_buildGroupSection),
                   const SizedBox(height: 24),
                 ],
               ),

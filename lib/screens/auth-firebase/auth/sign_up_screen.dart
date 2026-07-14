@@ -7,6 +7,7 @@ import 'package:nomade_client/services/notification_service.dart';
 import 'package:nomade_client/screens/auth-firebase/auth/sign_in_screen.dart';
 import 'package:nomade_client/screens/auth-firebase/phoneLogin/phone_login_screen.dart';
 import 'package:nomade_client/screens/auth-firebase/signUp/components/sign_up_form.dart';
+import 'package:nomade_client/screens/auth-firebase/auth/complete_phone_screen.dart';
 import 'package:nomade_client/screens/HomeScreen/home_screen_app.dart';
 import 'package:nomade_client/constants.dart';
 import 'package:nomade_client/theme/app_colors.dart';
@@ -30,9 +31,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (user != null && mounted) {
         await NotificationService().refreshTokenForUser();
         if (!mounted) return;
+        final hasPhone = await _authService.hasPhoneNumber(user.uid);
+        if (!mounted) return;
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => const HomeScreenApp()),
+          MaterialPageRoute(
+            builder: (_) =>
+                hasPhone ? const HomeScreenApp() : const CompletePhoneScreen(),
+          ),
           (_) => false,
         );
       }

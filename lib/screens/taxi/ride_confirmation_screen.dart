@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nomade_client/constants.dart';
 import 'package:nomade_client/providers/all_providers.dart';
+import 'package:nomade_client/screens/auth-firebase/auth/complete_phone_screen.dart';
 import 'package:nomade_client/screens/auth-firebase/auth/sign_in_screen.dart';
 import 'package:nomade_client/theme/app_colors.dart';
 import 'package:nomade_client/translations/app_translations.dart';
@@ -49,6 +50,20 @@ class _RideConfirmationScreenState extends ConsumerState<RideConfirmationScreen>
       await Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const SignInScreen()),
+      );
+      return;
+    }
+
+    if (userState.displayPhone == null || userState.displayPhone!.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Merci de renseigner votre numéro de téléphone avant de commander'),
+          backgroundColor: _c.error,
+        ),
+      );
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const CompletePhoneScreen()),
       );
       return;
     }
@@ -578,11 +593,14 @@ class _RideConfirmationScreenState extends ConsumerState<RideConfirmationScreen>
 
   String _paymentLabel(String method) {
     switch (method) {
-      case 'cash':    return 'ESPÈCES';
-      case 'waafi':   return 'WAAFI';
-      case 'd_money': return 'D-MONEY';
-      case 'cac_pay': return 'CAC PAY';
-      default:        return method.toUpperCase();
+      case 'cash':       return 'ESPÈCES';
+      case 'waafi':      return 'WAAFI';
+      case 'd_money':    return 'D-MONEY';
+      case 'cac_pay':    return 'CAC PAY';
+      case 'bci':        return 'BCI';
+      case 'exim':       return 'EXIM BANK';
+      case 'dahab_plus': return 'DAHAB+';
+      default:           return method.toUpperCase();
     }
   }
 
@@ -659,6 +677,9 @@ class _RideConfirmationScreenState extends ConsumerState<RideConfirmationScreen>
           _paymentTile('waafi', 'Waafi', Icons.account_balance_wallet, c),
           _paymentTile('d_money', 'D-Money', Icons.account_balance_wallet, c),
           _paymentTile('cac_pay', 'CAC Pay', Icons.account_balance_wallet, c),
+          _paymentTile('bci', 'BCI', Icons.account_balance, c),
+          _paymentTile('exim', 'EXIM Bank', Icons.account_balance, c),
+          _paymentTile('dahab_plus', 'Dahab+', Icons.account_balance_wallet, c),
           const SizedBox(height: 32),
         ],
       ),

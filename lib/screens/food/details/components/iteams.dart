@@ -103,7 +103,7 @@ class _ItemsState extends State<Items> {
           length: _categories.length,
           child: TabBar(
             isScrollable: true,
-            unselectedLabelColor: titleColor,
+            unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
             labelStyle: Theme.of(context).textTheme.titleLarge,
             onTap: (i) => setState(() => _selectedCategory = _categories[i]),
             tabs: _categories.map((category) {

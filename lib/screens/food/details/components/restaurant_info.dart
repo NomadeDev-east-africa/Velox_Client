@@ -62,13 +62,22 @@ class RestaurantInfo extends ConsumerWidget {
           Row(
             children: [
               DeliveryInfo(
-                iconSrc: "assets/icons/delivery.svg",
+                icon: const Icon(Icons.toll_rounded,
+                    color: kNeonGreen, size: 20),
                 text: tr('free'),
                 subText: tr('delivery'),
               ),
               const SizedBox(width: defaultPadding),
               DeliveryInfo(
-                iconSrc: "assets/icons/clock.svg",
+                icon: SvgPicture.asset(
+                  "assets/icons/clock.svg",
+                  height: 20,
+                  width: 20,
+                  colorFilter: const ColorFilter.mode(
+                    primaryColor,
+                    BlendMode.srcIn,
+                  ),
+                ),
                 text: "35",
                 subText: tr('minutes'),
               ),
@@ -93,27 +102,20 @@ class RestaurantInfo extends ConsumerWidget {
 class DeliveryInfo extends StatelessWidget {
   const DeliveryInfo({
     super.key,
-    required this.iconSrc,
+    required this.icon,
     required this.text,
     required this.subText,
   });
 
-  final String iconSrc, text, subText;
+  final Widget icon;
+  final String text, subText;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SvgPicture.asset(
-          iconSrc,
-          height: 20,
-          width: 20,
-          colorFilter: const ColorFilter.mode(
-            primaryColor,
-            BlendMode.srcIn,
-          ),
-        ),
+        icon,
         const SizedBox(width: 8),
         Text.rich(
           TextSpan(
