@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:nomade_client/components/inputs/djibouti_phone.dart';
 import 'package:nomade_client/services/auth_service.dart';
 import 'package:nomade_client/constants.dart';
 import 'package:nomade_client/screens/homeScreen/home_screen_app.dart';
@@ -28,10 +28,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   }
 
   // L'utilisateur tape seulement les chiffres locaux — on préfixe +253
-  String get _fullPhoneNumber {
-    final local = _phoneController.text.trim().replaceAll(' ', '');
-    return '+253$local';
-  }
+  String get _fullPhoneNumber => toE164Djibouti(_phoneController.text);
 
   Future<void> _sendOTP() async {
     if (!_formKey.currentState!.validate()) return;
@@ -144,17 +141,8 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                   keyboardType: TextInputType.phone,
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _sendOTP(),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(8),
-                    _PhoneInputFormatter(),
-                  ],
-                  validator: (value) {
-                    final digits = value?.replaceAll(' ', '') ?? '';
-                    if (digits.isEmpty) return 'Entrez votre numéro';
-                    if (digits.length < 6) return 'Numéro trop court';
-                    return null;
-                  },
+                  inputFormatters: djiboutiPhoneInputFormatters(),
+                  validator: validateDjiboutiPhone,
                   style: theme.textTheme.titleLarge?.copyWith(
                     letterSpacing: 2,
                     fontWeight: FontWeight.w600,
@@ -167,7 +155,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                       fontWeight: FontWeight.w400,
                       fontSize: 18,
                     ),
-                    prefixIcon: _DjiboutiPrefix(colors: theme.colorScheme),
+                    prefixIcon: const DjiboutiPrefix(),
                     prefixIconConstraints: const BoxConstraints(minWidth: 0),
                     filled: true,
                     fillColor: theme.colorScheme.surfaceContainerHigh,
@@ -294,61 +282,3 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   }
 }
 
-// ── Widget préfixe Djibouti ───────────────────────────────────────────────────
-
-class _DjiboutiPrefix extends StatelessWidget {
-  final ColorScheme colors;
-
-  const _DjiboutiPrefix({required this.colors});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 16, right: 0),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('🇩🇯', style: TextStyle(fontSize: 22)),
-          const SizedBox(width: 8),
-          Text(
-            '+253',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: colors.onSurface,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Container(
-            width: 1,
-            height: 24,
-            color: colors.outlineVariant,
-          ),
-          const SizedBox(width: 10),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Formatter : ajoute un espace après les 2 premiers chiffres ───────────────
-
-class _PhoneInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
-    final digits = newValue.text.replaceAll(' ', '');
-    final buffer = StringBuffer();
-
-    for (int i = 0; i < digits.length; i++) {
-      if (i == 2 || i == 4 || i == 6) buffer.write(' ');
-      buffer.write(digits[i]);
-    }
-
-    final formatted = buffer.toString();
-    return newValue.copyWith(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
-    );
-  }
-}

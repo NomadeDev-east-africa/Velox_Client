@@ -141,7 +141,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     _sectionHeader(
                       tr('all_restaurants').toUpperCase(),
                       c: c,
-                      onTap: () {},
                     ),
                     const SizedBox(height: 16),
                     _AllRestaurantsList(c: c),
@@ -727,7 +726,7 @@ class _PopularCard extends ConsumerWidget {
                       Icon(Icons.schedule_outlined, size: 11, color: c.onSurfaceVariant),
                       const SizedBox(width: 3),
                       Text(
-                        '25 min',
+                        '35 min',
                         style: GoogleFonts.spaceGrotesk(
                           fontSize: 10,
                           color: c.onSurfaceVariant,
@@ -916,7 +915,7 @@ class _RestaurantCard extends ConsumerWidget {
                               color: c.onSurfaceVariant, size: 13),
                           const SizedBox(width: 4),
                           Text(
-                            '25 MIN',
+                            '35 MIN',
                             style: GoogleFonts.spaceGrotesk(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,

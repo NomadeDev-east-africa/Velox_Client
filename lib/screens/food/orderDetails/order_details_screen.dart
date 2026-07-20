@@ -11,6 +11,7 @@ import 'package:nomade_client/screens/auth-firebase/auth/complete_phone_screen.d
 import 'package:nomade_client/screens/auth-firebase/auth/sign_in_screen.dart';
 import 'package:nomade_client/screens/food/food_tracking/delivery_address_picker_screen.dart';
 import 'package:nomade_client/screens/food/pending_order/pending_order_screen.dart';
+import 'package:nomade_client/services/restaurant_service.dart';
 import 'package:nomade_client/theme/app_colors.dart';
 
 // ✅ PHASE 4 : cart_provider.dart SUPPRIMÉ — remplacé par cartProvider Riverpod
@@ -781,6 +782,30 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
       _showSnack(tr('cart_empty'), backgroundColor: Colors.orange);
       return;
     }
+    // Garde-fou final : le restaurant a pu fermer entre l'ajout au panier et la
+    // validation. On relit le statut FRAIS depuis Firestore plutôt que
+    // `cart.selectedRestaurant`, qui — restauré depuis Hive après un
+    // redémarrage — perd `isOpen` (défaut true) et laisserait passer la commande.
+    final cartRestaurant = cart.selectedRestaurant;
+    if (cartRestaurant != null) {
+      final fresh =
+          await RestaurantService().getRestaurantById(cartRestaurant.id);
+      // fresh == null (resto introuvable/hors ligne) : on ne bloque pas sur une
+      // simple erreur réseau, le backend reste le garde-fou ultime.
+      if (fresh != null && !fresh.canOrder) {
+        if (!mounted) return;
+        final reopen = fresh.reopeningLabel;
+        _showSnack(
+          reopen == null
+              ? '${fresh.name} est fermé, commande impossible.'
+              : '${fresh.name} est fermé. $reopen.',
+          backgroundColor: Colors.red,
+        );
+        return;
+      }
+    }
+    // Après l'await ci-dessus, on ne réutilise le context que si toujours monté.
+    if (!mounted) return;
     if (_deliveryAddressName == null || _deliveryLocation == null) {
       _showSnack(tr('please_choose_address'),
           backgroundColor: Colors.orange);

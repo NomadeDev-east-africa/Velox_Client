@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:nomade_client/components/inputs/djibouti_phone.dart';
 import 'package:nomade_client/providers/all_providers.dart';
 import 'package:nomade_client/theme/app_colors.dart';
 
@@ -30,7 +32,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     super.initState();
     final userState = ref.read(userNotifierProvider);
     _nameController  = TextEditingController(text: userState.displayName);
-    _phoneController = TextEditingController(text: userState.displayPhone ?? '');
+    // Le champ ne contient que les 8 chiffres locaux : l'indicatif +253 est figé
+    // dans le préfixe et rajouté à la sauvegarde.
+    _phoneController =
+        TextEditingController(text: localDigitsFrom(userState.displayPhone));
 
     final bd = userState.userData?['birthDate'];
     if (bd is Timestamp) _birthDate = bd.toDate();
@@ -217,16 +222,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               controller: _phoneController,
               label: 'Numéro de téléphone',
               icon: Icons.phone_outlined,
-              hint: '+253 XX XX XX XX',
+              hint: '77 XX XX XX',
               keyboardType: TextInputType.phone,
-              validator: (v) {
-                if (v != null && v.isNotEmpty) {
-                  if (!v.startsWith('+253') && !v.startsWith('253')) {
-                    return 'Format: +253XXXXXXXX';
-                  }
-                }
-                return null;
-              },
+              prefix: const DjiboutiPrefix(),
+              inputFormatters: djiboutiPhoneInputFormatters(),
+              validator: (v) => validateDjiboutiPhone(v, required: false),
             ),
 
             const SizedBox(height: 16),
@@ -307,6 +307,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     required String hint,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
+    Widget? prefix,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -323,11 +325,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
           style: TextStyle(color: _c.onSurface, fontSize: 15),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: _c.outlineVariant, fontSize: 14),
-            prefixIcon: Icon(icon, color: _c.primary, size: 20),
+            prefixIcon: prefix ?? Icon(icon, color: _c.primary, size: 20),
+            prefixIconConstraints:
+                prefix != null ? const BoxConstraints(minWidth: 0) : null,
             filled: true,
             fillColor: _c.surfaceLow,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -600,10 +605,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final phone = _phoneController.text.trim();
+      final localDigits = _phoneController.text.replaceAll(RegExp(r'\D'), '');
       await ref.read(userNotifierProvider.notifier).updateProfile(
         name: _nameController.text.trim(),
-        phone: phone.isEmpty ? null : phone,
+        phone: localDigits.isEmpty ? null : toE164Djibouti(localDigits),
         birthDate: _birthDate,
       );
 

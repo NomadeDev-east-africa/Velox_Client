@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:nomade_client/providers/all_providers.dart';
 import 'package:nomade_client/theme/app_colors.dart';
 import 'package:nomade_client/translations/app_translations.dart';
@@ -188,9 +189,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       themeState: themeState,
                       icon: Icons.info,
                       title: tr('about_app'),
-                      subtitle: '${tr('version')} 1.0.0',
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {},
+                      subtitle: 'veloxdj.com',
+                      trailing: const Icon(Icons.open_in_new, size: 18),
+                      onTap: _openWebsite,
                     ),
                   ],
                 ),
@@ -651,6 +652,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
     } finally {
       if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  Future<void> _openWebsite() async {
+    final uri = Uri.parse('https://veloxdj.com');
+    // launchUrl peut lever (PlatformException) si aucun handler n'existe, pas
+    // seulement renvoyer false — on couvre les deux cas.
+    bool launched = false;
+    try {
+      launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      launched = false;
+    }
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Impossible d\'ouvrir le site veloxdj.com'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 

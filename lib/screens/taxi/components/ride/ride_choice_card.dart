@@ -95,6 +95,17 @@ class RideChoiceCard extends StatelessWidget {
                 color: isSelected ? kNeonGreenDark : c.onSurface,
               ),
             ),
+
+            // Climatisation : réservée au Confort
+            if (ride.type == RideType.comfort)
+              Text(
+                '+ clim',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? kNeonGreenDark : drapeauVert,
+                ),
+              ),
             const SizedBox(height: 2),
 
             // Délai d'arrivée

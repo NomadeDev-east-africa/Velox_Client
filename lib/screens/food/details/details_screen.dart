@@ -147,6 +147,58 @@ class _AvisSection extends StatelessWidget {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Bandeau affiché quand le restaurant est fermé : la commande est bloquée,
+/// on prévient l'utilisateur dès l'entrée sur la page.
+class _ClosedBanner extends StatelessWidget {
+  final Restaurant restaurant;
+
+  const _ClosedBanner({required this.restaurant});
+
+  @override
+  Widget build(BuildContext context) {
+    final reopen = restaurant.reopeningLabel;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+          defaultPadding, 0, defaultPadding, defaultPadding / 2),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.schedule_rounded,
+              color: Theme.of(context).colorScheme.onErrorContainer, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Restaurant fermé',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                ),
+                Text(
+                  reopen ?? 'Vous ne pouvez pas commander pour le moment.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 class DetailsScreen extends StatelessWidget {
   final Restaurant restaurant;
 
@@ -160,16 +212,6 @@ class DetailsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         actions: [
-          IconButton(
-            icon: SvgPicture.asset(
-              "assets/icons/share.svg",
-              colorFilter: ColorFilter.mode(
-                Theme.of(context).appBarTheme.foregroundColor ?? Colors.black87,
-                BlendMode.srcIn,
-              ),
-            ),
-            onPressed: () {},
-          ),
           IconButton(
             icon: SvgPicture.asset(
               "assets/icons/search.svg",
@@ -195,6 +237,7 @@ class DetailsScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: defaultPadding / 2),
+                  if (!restaurant.canOrder) _ClosedBanner(restaurant: restaurant),
                   RestaurantInfo(restaurant: restaurant),
                   const SizedBox(height: defaultPadding),
                   FeaturedItems(

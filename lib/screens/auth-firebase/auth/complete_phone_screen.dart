@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:nomade_client/components/inputs/djibouti_phone.dart';
 import 'package:nomade_client/constants.dart';
 import 'package:nomade_client/screens/homeScreen/home_screen_app.dart';
 
@@ -33,7 +34,7 @@ class _CompletePhoneScreenState extends State<CompletePhoneScreen> {
     setState(() => _isSaving = true);
     try {
       await FirebaseFirestore.instance.collection('users').doc(uid).set(
-        {'phone': _phoneController.text.trim()},
+        {'phone': toE164Djibouti(_phoneController.text)},
         SetOptions(merge: true),
       );
       if (!mounted) return;
@@ -92,18 +93,12 @@ class _CompletePhoneScreenState extends State<CompletePhoneScreen> {
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.done,
                     onFieldSubmitted: (_) => _save(),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Entrez votre numéro de téléphone';
-                      }
-                      if (value.trim().length < 8) {
-                        return 'Numéro invalide';
-                      }
-                      return null;
-                    },
+                    inputFormatters: djiboutiPhoneInputFormatters(),
+                    validator: validateDjiboutiPhone,
                     decoration: const InputDecoration(
-                      hintText: '+253 77 XX XX XX',
-                      prefixIcon: Icon(Icons.phone),
+                      hintText: '77 XX XX XX',
+                      prefixIcon: DjiboutiPrefix(),
+                      prefixIconConstraints: BoxConstraints(minWidth: 0),
                     ),
                     enabled: !_isSaving,
                   ),

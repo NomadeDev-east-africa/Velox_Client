@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import 'package:nomade_client/models/ride.dart';
 import 'package:nomade_client/providers/all_providers.dart';
 import 'package:nomade_client/theme/app_colors.dart';
 import 'ride_completion_screen.dart';
+import 'track_driver_screen.dart';
 
 /// Écran de suivi en temps réel — design Kinetic Monolith
 class TrackingScreen extends ConsumerStatefulWidget {
@@ -26,6 +28,22 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen>
   bool _noDriverPopupShown   = false;
   late AppColors _c;
   late bool _isDark;
+
+  // Cache du document chauffeur (plaque) : l'écran se reconstruit à chaque
+  // mise à jour de la course, on ne veut PAS relire Firestore à chaque rebuild.
+  Future<DocumentSnapshot<Map<String, dynamic>>>? _driverDocFuture;
+  String? _driverDocFutureId;
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> _driverDoc(String driverId) {
+    if (_driverDocFutureId != driverId) {
+      _driverDocFutureId = driverId;
+      _driverDocFuture = FirebaseFirestore.instance
+          .collection('drivers')
+          .doc(driverId)
+          .get();
+    }
+    return _driverDocFuture!;
+  }
 
   @override
   void dispose() {
@@ -496,6 +514,102 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen>
     );
   }
 
+  // ── Plaque d'immatriculation + bouton de suivi ───────────────
+  // La plaque n'est pas sur la course : `Ride.vehicleId` est écrit à null par
+  // ride_service. On la lit sur le document chauffeur, en lecture pour tout
+  // client authentifié (firestore.rules). Si le chauffeur ne l'a pas
+  // renseignée, le bouton de suivi prend toute la largeur plutôt que de
+  // laisser un encart vide.
+  Widget _buildPlateAndTrackRow(Ride ride) {
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: _driverDoc(ride.driverId!),
+      builder: (context, snap) {
+        final plate = (snap.data?.data()?['licensePlate'] as String?)?.trim();
+        final hasPlate = plate != null && plate.isNotEmpty;
+
+        if (!hasPlate) return _buildTrackDriverButton(ride);
+
+        return Row(
+          children: [
+            Expanded(flex: 2, child: _buildPlateChip(plate)),
+            const SizedBox(width: 8),
+            Expanded(child: _buildTrackDriverButton(ride)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildPlateChip(String plate) {
+    return Container(
+      color: _c.surfaceTop,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Icon(Icons.directions_car_outlined,
+              color: _c.onSurfaceVariant, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              plate.toUpperCase(),
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: _c.onSurface,
+                letterSpacing: 1,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Bouton "voir la position du chauffeur" ───────────────────
+  Widget _buildTrackDriverButton(Ride ride) {
+    // Avant le départ le chauffeur roule vers le pickup ; une fois la course
+    // lancée, vers la destination.
+    final enRouteVersClient = ride.status == RideStatus.accepted ||
+        ride.status == RideStatus.arriving ||
+        ride.status == RideStatus.arrived;
+    final cible = enRouteVersClient ? ride.pickup : ride.destination;
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => TrackDriverScreen(
+            driverId: ride.driverId!,
+            driverName: ride.driverName,
+            target: LatLng(cible.latitude, cible.longitude),
+            targetLabel: enRouteVersClient ? 'Vous' : 'la destination',
+          ),
+        ),
+      ),
+      child: Container(
+        color: _c.surfaceTop,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.map_outlined, color: _c.primary, size: 16),
+            const SizedBox(width: 6),
+            Text(
+              'SUIVRE',
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                color: _c.primary,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ── Bottom Control Panel ─────────────────────────────────────
 
   Widget _buildBottomPanel(Ride ride, bool canCancel) {
@@ -638,6 +752,10 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen>
                 ),
               ],
             ),
+
+            // Plaque + suivi carte du chauffeur
+            const SizedBox(height: 8),
+            _buildPlateAndTrackRow(ride),
           ],
 
           // Status strip + cancel

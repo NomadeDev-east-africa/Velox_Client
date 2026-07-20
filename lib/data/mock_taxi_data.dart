@@ -145,7 +145,7 @@ class MockTaxiData {
       pricePerKm: 200,
       estimatedArrivalTime: '~5 min',
       description: 'Économique et rapide',
-      features: ['Climatisation', '4 places'],
+      features: ['4 places'],
     ),
     const RideChoice(
       id: 'taxi_comfort',

@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import '../services/auth_service.dart';
 import '../services/hive_service.dart';
 import '../services/notification_service.dart';
 import '../utils/local_cache.dart';
@@ -325,12 +326,27 @@ class UserNotifier extends StateNotifier<UserState> {
   Future<void> deleteAccount() async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Utilisateur non connecté');
+    final uid = user.uid;
 
+    final authService = AuthService();
     try {
-      // Auth first — if this throws requires-recent-login, Firestore est intact
-      // et l'utilisateur peut se ré-authentifier et réessayer.
-      await user.delete();
-      await _firestore.collection('users').doc(user.uid).delete();
+      // 0. Confirmer l'identité AVANT toute suppression (Apple/Google) : si
+      //    l'utilisateur annule la reconnexion, on abandonne ici sans avoir rien
+      //    supprimé — le message d'erreur reste honnête.
+      await authService.reauthenticateForDeletion();
+
+      // 1. Firestore, tant que l'utilisateur est encore authentifié.
+      //    La règle `users` autorise delete si isAuth() && isOwner() : après
+      //    user.delete() le token n'est plus valide → suppression refusée.
+      //    Les sous-collections ne sont pas supprimées en cascade par Firestore
+      //    (les règles imposent de les vider avant le document parent).
+      await _deleteUserFirestoreData(uid);
+
+      // 2. Compte Auth EN DERNIER (réauth déjà faite ci-dessus pour Apple/Google ;
+      //    fallback requires-recent-login conservé pour téléphone/email).
+      await authService.deleteAuthAccount();
+
+      // 3. Nettoyage local + état mémoire.
       await HiveService.clearAllSession();
       await LocalCache.clearUser();
       _ref.invalidate(cartProvider);
@@ -345,6 +361,18 @@ class UserNotifier extends StateNotifier<UserState> {
       if (mounted) state = state.copyWith(error: e.toString());
       rethrow;
     }
+  }
+
+  /// Supprime les sous-collections de l'utilisateur puis son document.
+  Future<void> _deleteUserFirestoreData(String uid) async {
+    final userDoc = _firestore.collection('users').doc(uid);
+    for (final sub in const ['addresses', 'favorite_drivers']) {
+      final snap = await userDoc.collection(sub).get();
+      for (final d in snap.docs) {
+        await d.reference.delete();
+      }
+    }
+    await userDoc.delete();
   }
 
   Future<void> sendEmailVerification() async {

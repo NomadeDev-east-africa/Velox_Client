@@ -224,6 +224,91 @@ class AuthService {
   }
 
   // ════════════════════════════════════════════════════════════
+  // SUPPRESSION DU COMPTE Auth
+  // ════════════════════════════════════════════════════════════
+
+  /// Supprime le compte Firebase Auth. À appeler EN DERNIER, après avoir
+  /// supprimé les données Firestore : une fois le compte Auth détruit, le token
+  /// n'est plus valide et toute écriture/suppression Firestore serait refusée.
+  ///
+  /// Firebase exige une connexion récente pour supprimer un compte : si le login
+  /// est trop ancien, on ré-authentifie automatiquement via le provider d'origine
+  /// puis on réessaie.
+  Future<void> deleteAuthAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Utilisateur non connecté');
+    try {
+      await user.delete();
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        await _reauthenticate(user);
+        await user.delete();
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  /// Ré-authentifie AVANT toute suppression, pour les providers qui le
+  /// permettent silencieusement (Apple/Google). Ainsi, si l'utilisateur annule
+  /// la fenêtre de reconnexion, la suppression est abandonnée AVANT toute perte
+  /// de données (message d'erreur honnête). No-op pour téléphone/email : leur
+  /// éventuelle reconnexion se fait dans deleteAuthAccount (cas rare).
+  Future<void> reauthenticateForDeletion() async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Utilisateur non connecté');
+    final providers = user.providerData.map((p) => p.providerId).toSet();
+    if (providers.contains('apple.com')) {
+      await user.reauthenticateWithCredential(await _buildAppleCredential());
+    } else if (providers.contains('google.com')) {
+      await user.reauthenticateWithCredential(await _buildGoogleCredential());
+    }
+  }
+
+  /// Ré-authentifie l'utilisateur via le provider avec lequel il s'est connecté.
+  Future<void> _reauthenticate(firebase_auth.User user) async {
+    final providers = user.providerData.map((p) => p.providerId).toSet();
+
+    if (providers.contains('apple.com')) {
+      await user.reauthenticateWithCredential(await _buildAppleCredential());
+    } else if (providers.contains('google.com')) {
+      await user.reauthenticateWithCredential(await _buildGoogleCredential());
+    } else {
+      // Téléphone / email : pas de reconnexion silencieuse possible ici.
+      throw 'Pour supprimer votre compte, reconnectez-vous puis réessayez.';
+    }
+  }
+
+  Future<firebase_auth.OAuthCredential> _buildAppleCredential() async {
+    final rawNonce = _generateNonce();
+    final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+    final appleCredential = await SignInWithApple.getAppleIDCredential(
+      scopes: [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ],
+      nonce: hashedNonce,
+    );
+    return firebase_auth.OAuthProvider('apple.com').credential(
+      idToken: appleCredential.identityToken,
+      rawNonce: rawNonce,
+      accessToken: appleCredential.authorizationCode,
+    );
+  }
+
+  Future<firebase_auth.AuthCredential> _buildGoogleCredential() async {
+    // signOut force le sélecteur de compte → jeton frais pour la reconnexion.
+    await _googleSignIn.signOut();
+    final googleUser = await _googleSignIn.signIn();
+    if (googleUser == null) throw 'Reconnexion annulée';
+    final auth = await googleUser.authentication;
+    return firebase_auth.GoogleAuthProvider.credential(
+      accessToken: auth.accessToken,
+      idToken: auth.idToken,
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════
   // CONNEXION Téléphone (OTP)
   // ════════════════════════════════════════════════════════════
 
@@ -367,12 +452,14 @@ class AuthService {
       });
       debugPrint('✅ [AuthService] Nouveau user créé: ${user.uid}');
     } else {
-      // ✅ Mise à jour — camelCase
+      // ✅ Mise à jour — camelCase.
+      // `isVerified` est volontairement exclu : il n'est PAS dans la whitelist
+      // onlyFields() des règles Firestore (anti-triche — un utilisateur ne peut
+      // pas se déclarer vérifié). L'inclure faisait échouer tout l'update avec
+      // permission-denied à chaque reconnexion Apple/Google d'un compte existant.
       await userDoc.update({
         'lastActiveAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        // ✅ FIX : Mettre à jour isVerified si email vérifié entre-temps
-        'isVerified': user.emailVerified,
       });
       debugPrint('✅ [AuthService] User mis à jour: ${user.uid}');
     }

@@ -75,17 +75,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
               // ── Logo + Titre ──────────────────────────────────────
               Center(
-                child: Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: primaryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(
-                    Icons.delivery_dining_rounded,
-                    size: 40,
-                    color: primaryColor,
+                child: Image.asset(
+                  'assets/images/velox-logo-sansBG.png',
+                  width: 96,
+                  height: 96,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(
+                      Icons.delivery_dining_rounded,
+                      size: 40,
+                      color: primaryColor,
+                    ),
                   ),
                 ),
               ),

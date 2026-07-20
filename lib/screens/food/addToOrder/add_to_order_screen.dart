@@ -58,6 +58,11 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
       }
       _groupSelections.add(selected);
     }
+    // Un groupe boissons `single + required` vient d'être présélectionné comme
+    // les autres. Si la formule par défaut n'est pas « Menu », le groupe est
+    // masqué : la boisson partirait dans le panier sans avoir été ni vue ni
+    // choisie.
+    if (!_isMenuSelected) _clearDrinkSelections();
   }
 
   int get _optionsSurcharge => _isDataDriven
@@ -83,15 +88,54 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
   static int _categoryPriority(String name) {
     final n = _normalize(name);
     if (n.contains('formule') || n.contains('taille') || n.contains('format') || n.contains('size')) return 0;
-    if (n.contains('sauce')) return 1;
-    if (n.contains('legume') || n.contains('veget')) return 2;
-    if (n.contains('supplement') || n.contains('extra')) return 3;
-    return 4;
+    // Les boissons suivent la formule qui les débloque : les reléguer en fin de
+    // liste ferait apparaître le groupe hors écran au moment du clic sur Menu.
+    if (_isDrinksGroup(name)) return 1;
+    if (n.contains('sauce')) return 2;
+    if (n.contains('legume') || n.contains('veget')) return 3;
+    if (n.contains('supplement') || n.contains('extra')) return 4;
+    return 5;
   }
 
   static bool _isSauceGroup(String name) => _normalize(name).contains('sauce');
 
   static const _maxIncludedSauces = 2;
+
+  // ── BOISSONS INCLUSES (liées à la formule « Menu ») ────────────────────────
+  // Les boissons ne sont offertes qu'avec la formule Menu : on masque le groupe
+  // tant que ce choix n'est pas coché. Toujours 100% data-driven — si le
+  // restaurant n'a pas de groupe boissons, il ne se passe simplement rien.
+
+  static bool _isDrinksGroup(String name) {
+    final n = _normalize(name);
+    return n.contains('boisson') || n.contains('drink');
+  }
+
+  /// Un groupe de formule est un groupe dont le nom contient « formule ».
+  static bool _isFormulaGroup(OptionGroup g) =>
+      _normalize(g.name).contains('formule');
+
+  /// Le choix qui débloque les boissons est celui nommé « menu ». Comparaison
+  /// insensible à la casse et aux accents : les données admin l'écrivent en
+  /// minuscule (« menu ») aussi bien qu'en « Menu ». « Menu Maxi » ne déclenche
+  /// pas (correspondance exacte du mot, pas un simple contains).
+  static bool _isMenuChoice(String name) => _normalize(name.trim()) == 'menu';
+
+  /// Vrai si un groupe formule a « menu » actuellement sélectionné.
+  bool get _isMenuSelected {
+    for (var gi = 0; gi < _optionGroups.length; gi++) {
+      final group = _optionGroups[gi];
+      if (!_isFormulaGroup(group)) continue;
+      for (final ci in _groupSelections[gi]) {
+        if (_isMenuChoice(group.choices[ci].name)) return true;
+      }
+    }
+    return false;
+  }
+
+  /// Un groupe boissons ne s'affiche que si « Menu » est coché.
+  bool _isGroupVisible(int groupIndex) =>
+      !_isDrinksGroup(_optionGroups[groupIndex].name) || _isMenuSelected;
 
   List<int> get _sortedGroupIndices {
     final indices = List<int>.generate(_optionGroups.length, (i) => i);
@@ -145,13 +189,31 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
           selected.add(choiceIndex);
         }
       }
+
+      // Quitter la formule Menu doit oublier la boisson : sinon elle reste
+      // sélectionnée en mémoire alors que le groupe a disparu de l'écran, et
+      // part quand même dans la commande.
+      if (_isFormulaGroup(group) && !_isMenuSelected) {
+        _clearDrinkSelections();
+      }
     });
   }
 
+  void _clearDrinkSelections() {
+    for (var gi = 0; gi < _optionGroups.length; gi++) {
+      if (_isDrinksGroup(_optionGroups[gi].name)) {
+        _groupSelections[gi].clear();
+      }
+    }
+  }
+
   /// Premier groupe requis sans sélection, ou `null` si tout est valide.
+  /// Les groupes masqués sont ignorés : un groupe boissons `required` bloquerait
+  /// sinon l'ajout au panier en réclamant un choix invisible à l'écran.
   OptionGroup? _firstUnsatisfiedRequiredGroup() {
     for (var gi = 0; gi < _optionGroups.length; gi++) {
       final group = _optionGroups[gi];
+      if (!_isGroupVisible(gi)) continue;
       if (group.required && _groupSelections[gi].isEmpty) return group;
     }
     return null;
@@ -160,6 +222,12 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
   // ── LOGIQUE PANIER ────────────────────────────────────────────────────────
 
   void _proceedAddToCart() {
+    // Garde-fou : un restaurant fermé ne doit recevoir aucune commande.
+    // `canOrder` s'appuie sur isOpen, calculé backend selon les horaires.
+    if (!widget.restaurant.canOrder) {
+      _showClosedMessage();
+      return;
+    }
     if (_isDataDriven) {
       final missing = _firstUnsatisfiedRequiredGroup();
       if (missing != null) {
@@ -183,6 +251,22 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
       _addItemToCart();
       Navigator.pop(context);
     }
+  }
+
+  void _showClosedMessage() {
+    final reopen = widget.restaurant.reopeningLabel;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(
+          reopen == null
+              ? '${widget.restaurant.name} est actuellement fermé.'
+              : '${widget.restaurant.name} est fermé. $reopen.',
+          style: TextStyle(color: _c.onSurface),
+        ),
+        backgroundColor: _c.surfaceHigh,
+        behavior: SnackBarBehavior.floating,
+      ));
   }
 
   void _showDifferentRestaurantDialog(String? currentRestaurantName) {
@@ -583,6 +667,7 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
 
 
   Widget _buildAddToCartButton() {
+    final closed = !widget.restaurant.canOrder;
     return Container(
       color: _c.bg,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -590,21 +675,24 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
         onTap: _proceedAddToCart,
         child: Container(
           height: 56,
-          color: _c.primary,
+          color: closed ? _c.surfaceHigh : _c.primary,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                'AJOUTER AU PANIER ($_totalPrice FDJ)',
+                closed
+                    ? 'RESTAURANT FERMÉ'
+                    : 'AJOUTER AU PANIER ($_totalPrice FDJ)',
                 style: TextStyle(
-                  color: _c.onPrimary,
+                  color: closed ? _c.onSurfaceVariant : _c.onPrimary,
                   fontSize: 14,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1.2,
                 ),
               ),
               const SizedBox(width: 10),
-              Icon(Icons.bolt_rounded, color: _c.onPrimary, size: 20),
+              Icon(closed ? Icons.schedule_rounded : Icons.bolt_rounded,
+                  color: closed ? _c.onSurfaceVariant : _c.onPrimary, size: 20),
             ],
           ),
         ),
@@ -655,8 +743,11 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
                   _buildHeroImage(),
                   _buildPriceAndQuantity(),
                   // Plat sans optionGroups : aucune section d'options affichée.
+                  // Les boissons incluses n'apparaissent qu'avec la formule Menu.
                   if (_isDataDriven)
-                    ..._sortedGroupIndices.map(_buildGroupSection),
+                    ..._sortedGroupIndices
+                        .where(_isGroupVisible)
+                        .map(_buildGroupSection),
                   const SizedBox(height: 24),
                 ],
               ),

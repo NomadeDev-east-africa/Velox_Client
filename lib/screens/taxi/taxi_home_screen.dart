@@ -36,7 +36,7 @@ class TaxiHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
-    with TickerProviderStateMixin, RestorationMixin {
+    with TickerProviderStateMixin, RestorationMixin, WidgetsBindingObserver {
 
   // ── Carte ────────────────────────────────────────────────
   final MapController _mapController = MapController();
@@ -64,6 +64,16 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
   // ── DISTANCE / DURÉE ─────────────────────────────────────
   double _distanceKm = 0;
   int _durationMin = 0;
+  bool _isComputingRoute = false;
+  // Incrémenté à chaque nouvelle destination : une réponse getRoute tardive
+  // portant un id périmé est ignorée (anti-écrasement par une course obsolète).
+  int _routeRequestId = 0;
+
+  // ── ÉCHEC GPS ─────────────────────────────────────────────
+  // Non-null = on ne connaît pas la position réelle de l'utilisateur. On
+  // bloque plutôt que de supposer un départ : une course partirait du mauvais
+  // endroit et serait facturée depuis ce mauvais endroit.
+  LocationFailure? _gpsFailure;
 
   // ── Services ──────────────────────────────────────────────
   final LocationService _locationService = LocationService();
@@ -102,11 +112,22 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _initGps());
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Retour depuis les réglages iOS : si on était bloqué faute de position,
+    // on retente tout de suite pour que l'utilisateur n'ait rien à retaper.
+    if (state == AppLifecycleState.resumed && _gpsFailure != null) {
+      _initGps();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pulseController.dispose();
     _mapController.dispose();
     _restorablePickupAddress.dispose();
@@ -119,40 +140,56 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
   // ─────────────────────────────────────────────────────────
   Future<void> _initGps() async {
     final locNotifier = ref.read(locationNotifierProvider.notifier);
-    setState(() => _isLoadingPickup = true);
+    setState(() {
+      _isLoadingPickup = true;
+      _gpsFailure = null;
+    });
 
     try {
       if (!ref.read(locationNotifierProvider).hasPosition) {
+        // getCurrentLocation() n'émet pas : il stocke la cause dans l'état.
         await locNotifier.getCurrentLocation();
       }
 
-      final pos = ref.read(locationNotifierProvider).position;
-      if (pos != null && mounted) {
-        _pickupLatLng = pos;
-        _mapController.move(pos, 15);
+      final locState = ref.read(locationNotifierProvider);
+      final pos = locState.position;
 
-        final address = await _locationService.getAddressFromCoordinates(
-          pos.latitude, pos.longitude,
-        );
-        if (mounted) setState(() { _pickupAddress = address; _isLoadingPickup = false; });
-      } else {
+      if (pos == null) {
         if (mounted) {
           setState(() {
-            _pickupLatLng = _djiboutiCenter;
-            _pickupAddress = 'Centre-ville, Djibouti';
+            _gpsFailure = locState.failure ?? LocationFailure.unavailable;
             _isLoadingPickup = false;
           });
         }
+        return;
       }
+
+      if (!mounted) return;
+      _pickupLatLng = pos;
+      _mapController.move(pos, 15);
+
+      final address = await _locationService.getAddressFromCoordinates(
+        pos.latitude, pos.longitude,
+      );
+      if (mounted) setState(() { _pickupAddress = address; _isLoadingPickup = false; });
     } catch (e) {
-      debugPrint('❌ GPS: $e');
+      // La position est connue mais l'adresse lisible n'a pas pu être résolue :
+      // ce n'est pas bloquant, on garde les coordonnées.
+      debugPrint('❌ Adresse pickup: $e');
       if (mounted) {
         setState(() {
-          _pickupLatLng = _djiboutiCenter;
-          _pickupAddress = 'Centre-ville, Djibouti';
+          _pickupAddress ??= 'Position actuelle';
           _isLoadingPickup = false;
         });
       }
+    }
+  }
+
+  Future<void> _openLocationSettings() async {
+    if (_gpsFailure == LocationFailure.permissionDeniedForever) {
+      await _locationService.openAppSettings();
+    } else {
+      await _locationService.openLocationSettings();
     }
   }
 
@@ -218,28 +255,58 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
     );
 
     if (result != null && mounted) {
-      _setDestination(result);
+      await _setDestination(result);
     }
   }
 
   // ─────────────────────────────────────────────────────────
   // APPLIQUER LA DESTINATION → calcul distance + centrage carte
   // ─────────────────────────────────────────────────────────
-  void _setDestination(Place dest) {
-    if (_pickupLatLng == null) return;
+  /// Le prix se calcule sur la distance ROUTIÈRE (OpenRouteService), pas à vol
+  /// d'oiseau : en ville la route fait ~1,3× la ligne droite, ce qui sous-
+  /// facturait toutes les courses d'autant.
+  Future<void> _setDestination(Place dest) async {
+    final pickup = _pickupLatLng;
+    if (pickup == null) return;
 
-    final dist = _locationService.calculateDistance(
-      _pickupLatLng!.latitude, _pickupLatLng!.longitude,
+    // Estimation immédiate à vol d'oiseau pour que l'écran réagisse tout de
+    // suite ; elle est remplacée par la vraie distance dès la réponse réseau.
+    final straight = _locationService.calculateDistance(
+      pickup.latitude, pickup.longitude,
       dest.location.latitude, dest.location.longitude,
     );
-    final dur = _locationService.calculateETA(dist);
 
+    final requestId = ++_routeRequestId;
     setState(() {
       _destination = dest;
-      _distanceKm  = dist;
-      _durationMin = dur;
+      _distanceKm  = straight;
+      _durationMin = _locationService.calculateETA(straight);
       _restorableDestinationName.value = dest.name;
+      _isComputingRoute = true;
     });
+
+    try {
+      final route = await _locationService.getRoute(
+        startLat: pickup.latitude,
+        startLon: pickup.longitude,
+        endLat:   dest.location.latitude,
+        endLon:   dest.location.longitude,
+      );
+      // Une destination plus récente a été choisie entre-temps : réponse périmée.
+      if (!mounted || requestId != _routeRequestId) return;
+      setState(() {
+        _distanceKm  = route.distance;
+        _durationMin = route.duration;
+        _isComputingRoute = false;
+      });
+    } catch (e) {
+      // Réseau ou API indisponible : on conserve l'estimation à vol d'oiseau.
+      // Sous-évaluée, mais jamais bloquante pour la commande.
+      debugPrint('❌ Itinéraire: $e');
+      if (mounted && requestId == _routeRequestId) {
+        setState(() => _isComputingRoute = false);
+      }
+    }
   }
 
   // ─────────────────────────────────────────────────────────
@@ -304,6 +371,14 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
     final isDark = ref.watch(themeNotifierProvider).isDarkMode;
     _c = isDark ? AppColors.dark : AppColors.light;
     final bool hasDestination = _destination != null;
+
+    if (_gpsFailure != null) {
+      return Scaffold(
+        backgroundColor: _c.bg,
+        appBar: _buildAppBar(),
+        body: SafeArea(child: _buildGpsBlocker()),
+      );
+    }
 
     return Scaffold(
       backgroundColor: _c.bg,
@@ -372,6 +447,130 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
               const SizedBox(height: 20),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // BLOCAGE GPS
+  // Sans position réelle on n'affiche pas le formulaire : une course partirait
+  // d'un point inventé et serait facturée depuis ce point.
+  // ─────────────────────────────────────────────────────────
+  Widget _buildGpsBlocker() {
+    final deniedForever = _gpsFailure == LocationFailure.permissionDeniedForever;
+    final serviceOff = _gpsFailure == LocationFailure.serviceDisabled;
+
+    final String titre;
+    final String detail;
+    if (serviceOff) {
+      titre = 'Activez votre localisation';
+      detail = 'La localisation est désactivée sur votre iPhone. '
+          'Nous en avons besoin pour savoir où venir vous chercher.';
+    } else if (deniedForever) {
+      titre = 'Localisation bloquée';
+      detail = 'Vous avez refusé l\'accès à votre position. '
+          'Autorisez Velox dans les réglages pour commander une course.';
+    } else if (_gpsFailure == LocationFailure.permissionDenied) {
+      titre = 'Autorisez votre localisation';
+      detail = 'Velox a besoin de votre position pour savoir où venir '
+          'vous chercher.';
+    } else {
+      titre = 'Position introuvable';
+      detail = 'Le GPS ne répond pas. Placez-vous près d\'une fenêtre ou '
+          'à l\'extérieur, puis réessayez.';
+    }
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: kNeonGreen.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                serviceOff ? Icons.location_off_rounded : Icons.location_disabled_rounded,
+                size: 44,
+                color: kNeonGreen,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              titre,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: _c.onSurface,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              detail,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.5,
+                color: _c.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: _openLocationSettings,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kNeonGreen,
+                  foregroundColor: kNeonGreenDark,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: Text(
+                  serviceOff ? 'Ouvrir les réglages' : 'Autoriser la localisation',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton(
+                onPressed: _isLoadingPickup ? null : _initGps,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _c.onSurface,
+                  side: BorderSide(color: _c.outlineVariant),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: _isLoadingPickup
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text(
+                        'Réessayer',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -894,29 +1093,44 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
           ],
         ),
         child: ElevatedButton(
-          onPressed: _confirmRide,
+          // Tant que la vraie distance routière n'est pas revenue, le prix
+          // affiché est l'estimation à vol d'oiseau : on ne laisse pas
+          // confirmer sur un montant qui va encore changer.
+          onPressed: _isComputingRoute ? null : _confirmRide,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
+            disabledBackgroundColor: Colors.transparent,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.local_taxi, color: kNeonGreenDark, size: 22),
+              _isComputingRoute
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: kNeonGreenDark),
+                    )
+                  : const Icon(Icons.local_taxi, color: kNeonGreenDark, size: 22),
               const SizedBox(width: 10),
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(tr('confirm_ride'),
+                  Text(
+                      _isComputingRoute
+                          ? 'Calcul de l\'itinéraire...'
+                          : tr('confirm_ride'),
                       style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: kNeonGreenDark, letterSpacing: 0.3)),
                   Text('${price.toStringAsFixed(0)} FDJ · ${_selectedRide.name}',
                       style: const TextStyle(fontSize: 12, color: kNeonGreenDark)),
                 ],
               ),
               const SizedBox(width: 10),
-              const Icon(Icons.arrow_forward, color: kNeonGreenDark, size: 20),
+              if (!_isComputingRoute)
+                const Icon(Icons.arrow_forward, color: kNeonGreenDark, size: 20),
             ],
           ),
         ),

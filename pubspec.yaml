@@ -14,7 +14,7 @@ publish_to: 'none'
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.7+1
+version: 1.0.10+1
 
 environment:
   sdk: ^3.10.7
@@ -76,10 +76,11 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/logo-velox.png"
+  # Source opaque 1024×1024 : Apple refuse toute transparence sur l'icône.
+  image_path: "assets/images/logo-velox-ios-icon.png"
   min_sdk_android: 21
   adaptive_icon_background: "#0E0E0E"
-  adaptive_icon_foreground: "assets/images/logo_velox.webp"
+  adaptive_icon_foreground: "assets/images/velox-logo-adaptive-fg.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

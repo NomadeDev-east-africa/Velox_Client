@@ -39,6 +39,10 @@ class LocationState {
   final bool     hasPermission;
   final String?  error;
 
+  /// Cause typée du dernier échec — permet à l'UI de proposer la bonne action
+  /// (réglages GPS, réglages de l'app, réessayer) plutôt qu'un message brut.
+  final LocationFailure? failure;
+
   const LocationState({
     this.position,
     this.address,
@@ -47,6 +51,7 @@ class LocationState {
     this.isTracking   = false,
     this.hasPermission = false,
     this.error,
+    this.failure,
   });
 
   bool get hasPosition => position != null;
@@ -59,6 +64,7 @@ class LocationState {
     bool?    isTracking,
     bool?    hasPermission,
     String?  error,
+    LocationFailure? failure,
     bool     clearError   = false,
     bool     clearAddress = false,
   }) {
@@ -70,6 +76,7 @@ class LocationState {
       isTracking:    isTracking    ?? this.isTracking,
       hasPermission: hasPermission ?? this.hasPermission,
       error:         clearError    ? null : (error ?? this.error),
+      failure:       clearError    ? null : (failure ?? this.failure),
     );
   }
 }
@@ -152,6 +159,9 @@ class LocationNotifier extends StateNotifier<LocationState> {
           isLoading:     false,
           hasPermission: false,
           error:         e.toString(),
+          failure: e is LocationException
+              ? e.reason
+              : LocationFailure.unavailable,
         ));
       }
     }

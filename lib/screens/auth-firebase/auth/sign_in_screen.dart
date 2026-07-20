@@ -168,27 +168,6 @@ class _SignInScreenState extends State<SignInScreen> {
               ),
               const SizedBox(height: defaultPadding),
 
-              // Facebook (non configuré - optionnel)
-              SocialButton(
-                press: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Facebook - À configurer plus tard'),
-                    ),
-                  );
-                },
-                text: "Connect with Facebook",
-                color: const Color(0xFF395998),
-                icon: SvgPicture.asset(
-                  'assets/icons/facebook.svg',
-                  colorFilter: const ColorFilter.mode(
-                    Color(0xFF395998),
-                    BlendMode.srcIn,
-                  ),
-                ),
-              ),
-              const SizedBox(height: defaultPadding),
-
               // Apple - CONFIGURÉ FIREBASE (requis avec Google, guideline 4.8)
               SocialButton(
                 press: _isLoadingApple ? () {} : _signInWithApple,

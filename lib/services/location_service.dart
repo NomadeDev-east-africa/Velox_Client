@@ -7,6 +7,33 @@ import 'dart:math' show cos, sqrt, asin;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/secrets.dart';
 
+/// Cause précise d'un échec de localisation. Permet à l'UI de proposer la
+/// bonne action (ouvrir les réglages GPS vs les réglages de l'app) au lieu
+/// d'un message d'erreur générique.
+enum LocationFailure {
+  /// GPS désactivé sur l'appareil → réglages système de localisation.
+  serviceDisabled,
+
+  /// Permission refusée pour cette fois → on peut redemander.
+  permissionDenied,
+
+  /// Permission refusée définitivement → seuls les réglages de l'app aident.
+  permissionDeniedForever,
+
+  /// GPS activé et autorisé mais position introuvable (timeout, pas de signal).
+  unavailable,
+}
+
+class LocationException implements Exception {
+  final LocationFailure reason;
+  final String message;
+
+  const LocationException(this.reason, this.message);
+
+  @override
+  String toString() => message;
+}
+
 /// Entrée de cache avec timestamp
 class CacheEntry {
   final String address;
@@ -139,27 +166,35 @@ class LocationService {
   // ════════════════════════════════════════════════════════════
 
   Future<LocationData> getCurrentLocation() async {
-    try {
-      debugPrint('📍 Début getCurrentLocation');
+    debugPrint('📍 Début getCurrentLocation');
 
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        throw Exception('Les services de localisation sont désactivés');
-      }
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw const LocationException(
+        LocationFailure.serviceDisabled,
+        'Les services de localisation sont désactivés',
+      );
+    }
 
-      LocationPermission permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      debugPrint('🔒 Demande de permission...');
+      permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        debugPrint('🔒 Demande de permission...');
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          throw Exception('Permissions de localisation refusées');
-        }
+        throw const LocationException(
+          LocationFailure.permissionDenied,
+          'Permissions de localisation refusées',
+        );
       }
-      if (permission == LocationPermission.deniedForever) {
-        throw Exception(
-            'Permissions de localisation refusées définitivement');
-      }
+    }
+    if (permission == LocationPermission.deniedForever) {
+      throw const LocationException(
+        LocationFailure.permissionDeniedForever,
+        'Permissions de localisation refusées définitivement',
+      );
+    }
 
+    try {
       debugPrint('📡 Récupération position GPS...');
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
@@ -177,10 +212,18 @@ class LocationService {
       );
     } catch (e) {
       debugPrint('❌ Erreur getCurrentLocation: $e');
-      throw Exception(
-          'Erreur lors de l\'obtention de la position: $e');
+      throw LocationException(
+        LocationFailure.unavailable,
+        'Position introuvable. Vérifiez que vous captez le GPS.',
+      );
     }
   }
+
+  /// Ouvre les réglages système de localisation de l'appareil.
+  Future<bool> openLocationSettings() => Geolocator.openLocationSettings();
+
+  /// Ouvre la fiche réglages de l'app (permission refusée définitivement).
+  Future<bool> openAppSettings() => Geolocator.openAppSettings();
 
   Stream<LocationData> watchLocation() {
     return Geolocator.getPositionStream(

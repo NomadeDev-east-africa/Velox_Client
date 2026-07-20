@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nomade_client/components/inputs/djibouti_phone.dart';
 import 'package:nomade_client/services/auth_service.dart';
 import 'package:nomade_client/screens/HomeScreen/home_screen_app.dart';
 import 'package:nomade_client/constants.dart';
@@ -45,7 +46,7 @@ class _SignUpFormState extends State<SignUpForm> {
         email: _emailController.text,
         password: _passwordController.text,
         name: _nameController.text,
-        phone: _phoneController.text,
+        phone: toE164Djibouti(_phoneController.text),
       );
 
       if (user != null && mounted) {
@@ -121,17 +122,14 @@ class _SignUpFormState extends State<SignUpForm> {
           // Phone Field (obligatoire)
           TextFormField(
             controller: _phoneController,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Entrez votre numéro de téléphone';
-              }
-              return null;
-            },
+            inputFormatters: djiboutiPhoneInputFormatters(),
+            validator: validateDjiboutiPhone,
             textInputAction: TextInputAction.next,
             keyboardType: TextInputType.phone,
             decoration: const InputDecoration(
-              hintText: "+253 77 XX XX XX",
-              prefixIcon: Icon(Icons.phone),
+              hintText: "77 XX XX XX",
+              prefixIcon: DjiboutiPrefix(),
+              prefixIconConstraints: BoxConstraints(minWidth: 0),
             ),
             enabled: !_isLoading,
           ),
