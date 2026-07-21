@@ -387,3 +387,126 @@ seulement pour le message de réouverture. Blocage sur la fiche resto (bandeau +
   `device process launch` (le lancement échoue si l'iPhone est verrouillé). Les
   appareils repassent en `unavailable` s'ils se verrouillent / quittent le WiFi —
   revérifier avec `xcrun devicectl list devices`.
+
+---
+
+# PARTIE 3 — 1.0.9, 1.0.10 & soumission App Review
+
+> Suite de la PARTIE 2. Le lot de bugs critiques (section 15) est enfin livré sur
+> TestFlight en **1.0.9**, puis une passe de code-review donne la **1.0.10**, qui
+> est buildée, commitée et **soumise à Apple pour vérification**.
+
+## 17. Build 1.0.9 — le lot de bugs critiques (section 15) livré sur TestFlight
+
+Le lot décrit en section 15 (jusqu'ici buildé/testé sur device seulement) est passé
+sur TestFlight en **1.0.9+1** :
+- login iOS `permission-denied` à la reconnexion Apple/Google corrigé (`isVerified`
+  retiré de l'`update()`, cf. 15.1) ;
+- bouton Facebook retiré du `sign_in_screen` (15.2) ;
+- suppression de compte réparée — Firestore d'abord, Auth en dernier, avec
+  reconnexion auto si `requires-recent-login` (15.3) ;
+- commande vers un restaurant fermé bloquée côté client via `Restaurant.canOrder`
+  (15.4).
+
+Procédure habituelle : bump `pubspec.yaml`, `flutter build ipa --release`, vérif
+signature Apple Distribution + `aps-environment production` + applesignin, upload
+`xcrun altool` (clé API `8PN6V7YQBT`). Commit + push sur `feature/design-review`.
+
+## 18. Corrections code-review (dans la 1.0.10)
+
+Une relecture de code a produit 6 correctifs :
+1. **Garde-fou resto fermé final** : au moment de commander, on re-`fetch` le
+   restaurant frais via `RestaurantService.getRestaurantById` — un
+   `selectedRestaurant` restauré depuis le panier repart avec `isOpen` à sa valeur
+   par défaut `true` et pouvait laisser passer une commande vers un resto fermé.
+2. **Plaque du chauffeur** : le `FutureBuilder` est désormais mis en cache par
+   `driverId` (il re-fetchait la plaque à chaque rebuild).
+3. **Suppression de compte** : `AuthService.reauthenticateForDeletion()` s'exécute
+   AVANT toute suppression.
+4. **Lien site** : le `launchUrl` de `_openWebsite` est enveloppé dans un
+   try/catch.
+5. **Ressaisie OTP** : le dernier chiffre est conservé (plus de `maxLength` qui le
+   tronquait).
+6. **Itinéraire VTC** : `_setDestination` utilise un token de séquence pour ignorer
+   les réponses de route périmées.
+
+## 19. Icône de partage retirée
+
+Le `IconButton` de partage a été retiré de `details_screen.dart`.
+
+## 20. Launch screen natif régénéré avec le nouveau logo
+
+L'écran de démarrage natif (`LaunchImage.imageset`, tailles 200/400/600) affichait
+encore l'ANCIEN logo : c'est une copie native distincte, non touchée par
+`flutter_launcher_icons`. Régénérée avec le nouveau logo.
+
+## 21. Build, commit & soumission 1.0.10
+
+- **1.0.10+1** buildée (`flutter build ipa --release`, IPA 41 Mo, Apple
+  Distribution `7XH7YBK9H6`) et uploadée sur TestFlight : **UPLOAD SUCCEEDED**,
+  Delivery UUID `bd3bb099-1b88-4207-a06a-add13c5bbb5b` (quelques blips réseau -1005
+  auto-relancés).
+- Commit `87f61bd` (69 fichiers) sur `feature/design-review`, poussé vers
+  `origin` = `github.com/NomadeDev-east-africa/Velox_Client`.
+- **Soumise à Apple pour App Review** ("Ajouter pour vérification" cliqué) le
+  2026-07-20. La réponse d'Apple n'avait pas encore été consultée au moment de la
+  session suivante.
+
+---
+
+# PARTIE 4 — 1.0.11 (correction des promotions)
+
+> Session 2026-07-21 (Mac rendu ce jour). Un dernier bug remonté par
+> l'utilisateur : les promotions s'affichaient bien sur la liste des plats de la
+> fiche resto, mais pas sur la page « Ajouter au panier » ni sur les autres écrans.
+
+## 22. Les promotions n'étaient appliquées que sur la liste resto
+
+**Architecture** : deux mécanismes coexistent — un champ `discountPercentage` sur
+`MenuItem` (inutilisé à l'affichage) et une **collection `promotions`** séparée
+(type `item` | `category`, résolue via `PromotionService`). L'app affiche les
+promos via la collection. Structure vérifiée sur les vraies données (lecture REST,
+`promotions` étant lisible) : `targetId` est soit le **slug du nom**
+(`double_cheese`), soit l'**ID Firestore** du plat — `Promotion.matchesItem` gère
+les deux ; `isCurrentlyActive` filtre sur `isActive` + fenêtre de dates (la plupart
+des promos de la base ont expiré en mai 2026).
+
+**Bug** : les promos n'étaient récupérées que dans `iteams.dart` (liste des plats
+de la fiche resto) et passées à `ItemCard` pour l'affichage. Partout ailleurs la
+promo était perdue. Le plus grave : `AddToOrderScreen` ne recevait pas la promo et
+stockait le **plein tarif** dans le panier (`basePrice: menuItem.price`) — **le
+client était donc facturé au prix fort même sur un plat en promo**. Le champ
+`basePrice` alimente `unitPrice`/`totalPrice` → tout le total panier/checkout et la
+commande Firestore repartaient au plein tarif.
+
+**Correctifs** :
+- **Helper partagé** `PromotionService.resolveForItem(promotions, item)` (statique)
+  : résout la promo d'un plat, d'abord par match item puis par match catégorie —
+  source de vérité unique pour tous les écrans.
+- **`AddToOrderScreen`** : accepte une `Promotion?` optionnelle passée par
+  l'appelant ET la **re-résout elle-même en filet de sécurité** si absente (via un
+  fetch des promos du restaurant en `initState`) → le prix facturé est correct
+  depuis **n'importe quel point d'entrée**. Affiche le badge `-X%`, le prix remisé
+  et le prix original barré. `basePrice` du panier = **prix remisé arrondi** — le
+  total du panier, du checkout et de la commande Firestore découlent
+  automatiquement du bon prix.
+- **Affichage promo ajouté** aux écrans qui montraient un plat en promo au tarif
+  normal : plats « à la une » (`featured_item_card.dart` : badge + prix barré),
+  recherche dans le resto (`restaurant_menu_search_screen.dart`), plats par
+  catégorie (`category_items_screen.dart`, multi-restaurants : promos récupérées
+  par restaurant unique).
+- `iteams.dart` refactoré sur le helper partagé (l'affichage y était déjà correct)
+  et passe désormais la promo résolue à `AddToOrderScreen`.
+
+`flutter analyze` propre, testé sur iPhone mus.
+
+## 23. Build & upload 1.0.11
+
+- Commit `8850344` sur `feature/design-review`, poussé vers `origin`.
+- **1.0.11+1** buildée (`flutter build ipa --release`, IPA 41 Mo) → **UPLOAD
+  SUCCEEDED** sur TestFlight, Delivery UUID
+  `0a050651-1dd6-4a4d-86b2-42f5028ac07e`.
+- **⚠️ Ce Mac est rendu le 2026-07-21** — les prochains builds iOS nécessiteront
+  une autre machine macOS. Restant côté utilisateur (depuis un navigateur) :
+  consulter le résultat de review de la 1.0.10, attendre le « Processing » de la
+  1.0.11, puis la soumettre à App Review.
