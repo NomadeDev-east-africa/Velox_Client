@@ -4,16 +4,25 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../components/small_dot.dart';
 import '../../../../constants.dart';
 import '../../../../models/menu_item.dart';
+import '../../../../models/promotion.dart';
 
 class FeaturedItemCard extends StatelessWidget {
   const FeaturedItemCard({
     super.key,
     required this.menuItem,
     required this.press,
+    this.promotion,
   });
 
   final MenuItem menuItem;
   final VoidCallback press;
+  final Promotion? promotion;
+
+  bool get _hasPromo => promotion != null && promotion!.discountPercent > 0;
+
+  double get _discountedPrice => _hasPromo
+      ? menuItem.price * (1 - promotion!.discountPercent / 100)
+      : menuItem.price;
 
   @override
   Widget build(BuildContext context) {
@@ -33,27 +42,57 @@ class FeaturedItemCard extends StatelessWidget {
             children: [
               AspectRatio(
                 aspectRatio: 1,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.all(Radius.circular(8)),
-                  child: menuItem.imageUrl != null
-                      ? CachedNetworkImage(
-                          imageUrl: menuItem.imageUrl!,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: Colors.grey[300],
-                            child: const Center(
-                              child: CircularProgressIndicator(),
+                child: Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.all(Radius.circular(8)),
+                      child: menuItem.imageUrl != null
+                          ? CachedNetworkImage(
+                              imageUrl: menuItem.imageUrl!,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                              placeholder: (context, url) => Container(
+                                color: Colors.grey[300],
+                                child: const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: Colors.grey[300],
+                                child: const Icon(Icons.fastfood, size: 40),
+                              ),
+                            )
+                          : Container(
+                              color: Colors.grey[300],
+                              child: const Icon(Icons.fastfood, size: 40),
+                            ),
+                    ),
+                    if (_hasPromo)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 3),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF6EFF6E),
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(8),
+                              bottomRight: Radius.circular(8),
                             ),
                           ),
-                          errorWidget: (context, url, error) => Container(
-                            color: Colors.grey[300],
-                            child: const Icon(Icons.fastfood, size: 40),
+                          child: Text(
+                            '-${promotion!.discountPercent}%',
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        )
-                      : Container(
-                          color: Colors.grey[300],
-                          child: const Icon(Icons.fastfood, size: 40),
                         ),
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(height: 8),
@@ -70,9 +109,19 @@ class FeaturedItemCard extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    "${menuItem.price.toStringAsFixed(0)} FDJ",
+                    "${_discountedPrice.toStringAsFixed(0)} FDJ",
                     style: textStyle.copyWith(color: primaryColor),
                   ),
+                  if (_hasPromo) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      menuItem.price.toStringAsFixed(0),
+                      style: textStyle.copyWith(
+                        fontSize: 11,
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                  ],
                   const Padding(
                     padding:
                         EdgeInsets.symmetric(horizontal: defaultPadding / 2),

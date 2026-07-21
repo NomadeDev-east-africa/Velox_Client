@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import '../../../components/cards/item_card.dart';
 import '../../../constants.dart';
 import '../../../models/menu_item.dart';
+import '../../../models/promotion.dart';
 import '../../../models/restaurant.dart';
 import '../../../services/menu_service.dart';
+import '../../../services/promotion_service.dart';
 import '../../../services/restaurant_service.dart';
 import '../addToOrder/add_to_order_screen.dart';
 
@@ -21,6 +23,9 @@ class _CategoryItemsScreenState extends State<CategoryItemsScreen> {
   bool _isLoading = true;
   List<MenuItem> _items = [];
   Map<String, Restaurant?> _restaurantsById = {};
+  // Promos actives regroupées par restaurant (les plats affichés viennent de
+  // plusieurs restaurants).
+  Map<String, List<Promotion>> _promotionsByRestaurant = {};
 
   @override
   void initState() {
@@ -34,17 +39,26 @@ class _CategoryItemsScreenState extends State<CategoryItemsScreen> {
 
     final uniqueIds = items.map((m) => m.restaurantId).toSet().toList();
     final restaurantService = RestaurantService();
+    final promotionService = PromotionService();
     final fetched = await Future.wait(
       uniqueIds.map((id) => restaurantService.getRestaurantById(id)),
     );
+    final promos = await Future.wait(
+      uniqueIds.map((id) =>
+          promotionService.getActivePromotionsForRestaurant(id)),
+    );
     final byId = {
       for (var i = 0; i < uniqueIds.length; i++) uniqueIds[i]: fetched[i],
+    };
+    final promosById = {
+      for (var i = 0; i < uniqueIds.length; i++) uniqueIds[i]: promos[i],
     };
 
     if (!mounted) return;
     setState(() {
       _items = items;
       _restaurantsById = byId;
+      _promotionsByRestaurant = promosById;
       _isLoading = false;
     });
   }
@@ -64,6 +78,10 @@ class _CategoryItemsScreenState extends State<CategoryItemsScreen> {
                     itemBuilder: (context, index) {
                       final menu = _items[index];
                       final restaurant = _restaurantsById[menu.restaurantId];
+                      final promo = PromotionService.resolveForItem(
+                        _promotionsByRestaurant[menu.restaurantId] ?? const [],
+                        menu,
+                      );
 
                       return Padding(
                         padding: const EdgeInsets.symmetric(
@@ -84,6 +102,7 @@ class _CategoryItemsScreenState extends State<CategoryItemsScreen> {
                               ),
                             ItemCard(
                               menuItem: menu,
+                              promotion: promo,
                               press: restaurant == null
                                   ? () {}
                                   : () => Navigator.push(
@@ -92,6 +111,7 @@ class _CategoryItemsScreenState extends State<CategoryItemsScreen> {
                                           builder: (_) => AddToOrderScreen(
                                             menuItem: menu,
                                             restaurant: restaurant,
+                                            promotion: promo,
                                           ),
                                         ),
                                       ),

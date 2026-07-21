@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import '../../../components/cards/item_card.dart';
 import '../../../constants.dart';
 import '../../../models/menu_item.dart';
+import '../../../models/promotion.dart';
 import '../../../models/restaurant.dart';
 import '../../../services/menu_service.dart';
+import '../../../services/promotion_service.dart';
 import '../addToOrder/add_to_order_screen.dart';
 import '../search/search_screen.dart';
 
@@ -21,6 +23,7 @@ class _RestaurantMenuSearchScreenState extends State<RestaurantMenuSearchScreen>
   final _searchController = TextEditingController();
   bool _isLoading = true;
   List<MenuItem> _allMenus = [];
+  List<Promotion> _promotions = [];
   String _query = '';
 
   @override
@@ -30,10 +33,14 @@ class _RestaurantMenuSearchScreenState extends State<RestaurantMenuSearchScreen>
   }
 
   Future<void> _load() async {
-    final menus = await MenuService().getMenusByRestaurant(widget.restaurant.id);
+    final results = await Future.wait([
+      MenuService().getMenusByRestaurant(widget.restaurant.id),
+      PromotionService().getActivePromotionsForRestaurant(widget.restaurant.id),
+    ]);
     if (!mounted) return;
     setState(() {
-      _allMenus = menus;
+      _allMenus = results[0] as List<MenuItem>;
+      _promotions = results[1] as List<Promotion>;
       _isLoading = false;
     });
   }
@@ -88,16 +95,20 @@ class _RestaurantMenuSearchScreenState extends State<RestaurantMenuSearchScreen>
                             itemCount: _filteredMenus.length,
                             itemBuilder: (context, index) {
                               final menu = _filteredMenus[index];
+                              final promo = PromotionService.resolveForItem(
+                                  _promotions, menu);
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: defaultPadding / 2),
                                 child: ItemCard(
                                   menuItem: menu,
+                                  promotion: promo,
                                   press: () => Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) => AddToOrderScreen(
                                         menuItem: menu,
                                         restaurant: widget.restaurant,
+                                        promotion: promo,
                                       ),
                                     ),
                                   ),

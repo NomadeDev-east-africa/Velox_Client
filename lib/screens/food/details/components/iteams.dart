@@ -67,13 +67,9 @@ class _ItemsState extends State<Items> {
         .toList();
   }
 
-  // Retourne la promo active pour un plat (null si aucune)
-  Promotion? _promoForItem(MenuItem menu) {
-    for (final p in _promotions) {
-      if (p.matchesItem(menu.id, menu.name)) return p;
-    }
-    return null;
-  }
+  // Retourne la promo active pour un plat (item puis catégorie), null si aucune.
+  Promotion? _promoForItem(MenuItem menu) =>
+      PromotionService.resolveForItem(_promotions, menu);
 
   // La catégorie a-t-elle une promo de type "category" active ?
   bool _categoryHasPromo(String category) =>
@@ -142,11 +138,7 @@ class _ItemsState extends State<Items> {
         ..._filteredMenus.map(
           (menu) {
             // Promo directe sur le plat OU promo sur sa catégorie
-            final itemPromo  = _promoForItem(menu);
-            final catPromo   = _promotions
-                .where((p) => p.matchesCategory(menu.category))
-                .firstOrNull;
-            final activePromo = itemPromo ?? catPromo;
+            final activePromo = _promoForItem(menu);
 
             return Padding(
               padding: const EdgeInsets.symmetric(
@@ -160,6 +152,7 @@ class _ItemsState extends State<Items> {
                     builder: (_) => AddToOrderScreen(
                       menuItem:   menu,
                       restaurant: widget.restaurant,
+                      promotion:  activePromo,
                     ),
                   ),
                 ),

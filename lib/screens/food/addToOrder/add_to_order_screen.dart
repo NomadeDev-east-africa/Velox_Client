@@ -9,17 +9,24 @@ import '../../../models/restaurant.dart';
 import '../../../models/extra_option.dart';
 import '../../../models/sauce_option.dart';
 import '../../../models/order_item.dart';
+import '../../../models/promotion.dart';
 import '../../../providers/all_providers.dart';
+import '../../../services/promotion_service.dart';
 import '../../../theme/app_colors.dart';
 
 class AddToOrderScreen extends ConsumerStatefulWidget {
   final MenuItem   menuItem;
   final Restaurant restaurant;
+  /// Promo déjà résolue par l'écran appelant (liste resto). Si `null`, l'écran
+  /// la récupère lui-même : le prix facturé reste ainsi correct depuis n'importe
+  /// quel point d'entrée (à la une, recherche, catégorie...).
+  final Promotion? promotion;
 
   const AddToOrderScreen({
     super.key,
     required this.menuItem,
     required this.restaurant,
+    this.promotion,
   });
 
   @override
@@ -31,6 +38,9 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
 
   int _quantity = 1;
 
+  /// Promo active applicable à ce plat (null = aucune).
+  Promotion? _promotion;
+
   /// Sélections par groupe (aligné sur `menuItem.optionGroups`).
   /// Pour un groupe `single`, le Set contient 0 ou 1 index ; pour `multiple`, 0..N.
   final List<Set<int>> _groupSelections = [];
@@ -41,12 +51,36 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
   @override
   void initState() {
     super.initState();
+    _promotion = widget.promotion;
     if (_isDataDriven) {
       _initializeOptionGroups();
     }
     // Plat sans optionGroups : aucune section d'options à afficher
     // (plus d'extras/sauces inventés par défaut, cf. fix aligné sur l'app Android).
+    // Filet de sécurité : si l'appelant n'a pas fourni la promo, on la résout
+    // ici pour ne jamais facturer un plat en promo au plein tarif.
+    if (_promotion == null) _resolvePromotion();
   }
+
+  Future<void> _resolvePromotion() async {
+    final promos = await PromotionService()
+        .getActivePromotionsForRestaurant(widget.restaurant.id);
+    if (!mounted) return;
+    final resolved = PromotionService.resolveForItem(promos, widget.menuItem);
+    if (resolved != null) setState(() => _promotion = resolved);
+  }
+
+  // ── PRIX & PROMO ────────────────────────────────────────────────────────────
+  bool get _hasPromo =>
+      _promotion != null && _promotion!.discountPercent > 0;
+
+  int get _discountPercent => _hasPromo ? _promotion!.discountPercent : 0;
+
+  /// Prix de base après remise (la remise porte sur le plat, pas sur les
+  /// suppléments — cohérent avec l'affichage de la fiche resto).
+  double get _discountedBasePrice => _hasPromo
+      ? widget.menuItem.price * (1 - _discountPercent / 100)
+      : widget.menuItem.price;
 
   /// Initialise les sélections data-driven. Présélectionne le 1er choix d'un
   /// groupe `single + required` pour qu'un choix soit toujours valide.
@@ -70,7 +104,7 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
       : 0;
 
   int get _totalPrice =>
-      ((widget.menuItem.price + _optionsSurcharge) * _quantity).toInt();
+      ((_discountedBasePrice + _optionsSurcharge) * _quantity).round();
 
   // ── TRI DES GROUPES (Formule/Taille → Sauces → Légumes → Suppléments) ──────
   // Les groupes restent 100% pilotés par Firestore (nom/présence libres par
@@ -341,7 +375,9 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
       description: widget.menuItem.description,
       imageUrl:    widget.menuItem.imageUrl ?? '',
       category:    widget.menuItem.category,
-      basePrice:   widget.menuItem.price.toInt(),
+      // Prix promo appliqué : le client doit payer le tarif remisé, pas le plein
+      // tarif. La remise porte sur le plat ; extras/sauces s'ajoutent au tarif normal.
+      basePrice:   _discountedBasePrice.round(),
       quantity:    _quantity,
       extras:      extras,
       sauces:      sauces,
@@ -458,24 +494,67 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'BASE COST',
-                  style: TextStyle(
-                    color: _c.onSurfaceVariant,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.8,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'BASE COST',
+                      style: TextStyle(
+                        color: _c.onSurfaceVariant,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.8,
+                      ),
+                    ),
+                    if (_hasPromo) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        color: const Color(0xFF6EFF6E),
+                        child: Text(
+                          '-$_discountPercent%',
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '${widget.menuItem.price.toStringAsFixed(1)} FDJ',
-                  style: TextStyle(
-                    color: _c.primary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: -0.5,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${_discountedBasePrice.toStringAsFixed(1)} FDJ',
+                      style: TextStyle(
+                        color: _c.primary,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    if (_hasPromo) ...[
+                      const SizedBox(width: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 3),
+                        child: Text(
+                          '${widget.menuItem.price.toStringAsFixed(0)} FDJ',
+                          style: TextStyle(
+                            color: _c.onSurfaceVariant,
+                            fontSize: 13,
+                            decoration: TextDecoration.lineThrough,
+                            decorationColor: _c.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),

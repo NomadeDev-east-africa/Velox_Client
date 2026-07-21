@@ -4,7 +4,9 @@ import '../../../../constants.dart';
 import 'featured_item_card.dart';
 import '../../../../translations/app_translations.dart';
 import '../../../../services/menu_service.dart';
+import '../../../../services/promotion_service.dart';
 import '../../../../models/menu_item.dart';
+import '../../../../models/promotion.dart';
 import '../../../../models/restaurant.dart';
 import '../../addToOrder/add_to_order_screen.dart';
 
@@ -24,6 +26,7 @@ class FeaturedItems extends StatefulWidget {
 
 class _FeaturedItemsState extends State<FeaturedItems> {
   List<MenuItem> _featuredMenus = [];
+  List<Promotion> _promotions = [];
   bool _isLoading = true;
 
   @override
@@ -33,11 +36,15 @@ class _FeaturedItemsState extends State<FeaturedItems> {
   }
 
   Future<void> _loadFeaturedMenus() async {
-    final menus = await MenuService().getFeaturedMenus(widget.restaurantId, limit: 3);
+    final results = await Future.wait([
+      MenuService().getFeaturedMenus(widget.restaurantId, limit: 3),
+      PromotionService().getActivePromotionsForRestaurant(widget.restaurantId),
+    ]);
 
     if (mounted) {
       setState(() {
-        _featuredMenus = menus;
+        _featuredMenus = results[0] as List<MenuItem>;
+        _promotions    = results[1] as List<Promotion>;
         _isLoading     = false;
       });
     }
@@ -73,24 +80,30 @@ class _FeaturedItemsState extends State<FeaturedItems> {
             children: [
               ...List.generate(
                 _featuredMenus.length,
-                (index) => Padding(
-                  padding: const EdgeInsets.only(left: defaultPadding),
-                  child: FeaturedItemCard(
-                    menuItem: _featuredMenus[index],
-                    press: () {
-
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AddToOrderScreen(
-                            menuItem: _featuredMenus[index],
-                            restaurant: widget.restaurant,
+                (index) {
+                  final menu = _featuredMenus[index];
+                  final promo =
+                      PromotionService.resolveForItem(_promotions, menu);
+                  return Padding(
+                    padding: const EdgeInsets.only(left: defaultPadding),
+                    child: FeaturedItemCard(
+                      menuItem: menu,
+                      promotion: promo,
+                      press: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AddToOrderScreen(
+                              menuItem: menu,
+                              restaurant: widget.restaurant,
+                              promotion: promo,
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
               const SizedBox(width: defaultPadding),
             ],
