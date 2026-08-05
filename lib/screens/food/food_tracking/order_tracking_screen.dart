@@ -87,6 +87,13 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       backgroundColor: _c.bg,
       elevation: 0,
       automaticallyImplyLeading: false,
+      // Vrai bouton retour (l'AppBar n'en avait aucun → l'utilisateur restait
+      // piégé sur le suivi). Quitter est sûr : la commande continue et reste
+      // accessible via la pastille flottante globale.
+      leading: IconButton(
+        icon: Icon(Icons.arrow_back_ios_new, color: _c.onSurface, size: 20),
+        onPressed: _leaveTracking,
+      ),
       title: const Text(
         'Velox',
         style: TextStyle(
@@ -97,6 +104,24 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       ),
       centerTitle: true,
     );
+  }
+
+  /// Quitte l'écran de suivi. `PopScope(canPop:false)` bloque le retour système
+  /// accidentel (swipe) ; ce bouton fait un pop explicite (non bloqué) et
+  /// rappelle que la commande continue via la pastille.
+  void _leaveTracking() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(
+        content: Text(
+          'Votre commande continue — suivez-la depuis la pastille en bas.',
+        ),
+        behavior: SnackBarBehavior.floating,
+      ));
+    final nav = Navigator.of(context);
+    // canPop est toujours vrai ici (le suivi est poussé au-dessus de l'accueil) ;
+    // le garde évite juste un pop sur une route racine improbable.
+    if (nav.canPop()) nav.pop();
   }
 
   // ── BODY ROUTING ─────────────────────────────────────────────────────────

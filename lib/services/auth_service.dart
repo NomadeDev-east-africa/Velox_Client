@@ -24,12 +24,17 @@ class AuthService {
   Stream<firebase_auth.User?> get authStateChanges =>
       _auth.authStateChanges();
 
-  /// Vérifie si l'utilisateur a un numéro de téléphone enregistré
-  /// (nécessaire après une connexion Google/Apple, qui n'en fournit pas).
+  /// Vérifie si le compte a un numéro de téléphone RÉELLEMENT lié à Firebase
+  /// Auth (provider `phone`), et non un simple champ Firestore.
+  ///
+  /// ⚠️ La source de vérité est `firebaseUser.phoneNumber`, PAS `users/{uid}.phone` :
+  /// un numéro présent seulement en Firestore n'existe pas pour la connexion OTP,
+  /// donc Firebase créait un NOUVEAU compte vide à la connexion par SMS (bug des
+  /// « comptes fantômes »). `uid` n'est conservé que pour la compatibilité d'appel :
+  /// on interroge toujours le compte actuellement connecté.
   Future<bool> hasPhoneNumber(String uid) async {
-    final doc = await _firestore.collection('users').doc(uid).get();
-    final phone = doc.data()?['phone'];
-    return phone is String && phone.trim().isNotEmpty;
+    final phone = _auth.currentUser?.phoneNumber;
+    return phone != null && phone.trim().isNotEmpty;
   }
 
   // ════════════════════════════════════════════════════════════
@@ -76,7 +81,6 @@ class AuthService {
     required String email,
     required String password,
     required String name,
-    String? phone,
   }) async {
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
@@ -88,11 +92,15 @@ class AuthService {
       if (user != null) {
         await user.updateDisplayName(name);
 
-        // ✅ Écriture camelCase — toutes les clés Firestore
+        // ✅ Écriture camelCase — toutes les clés Firestore.
+        // `phone` reste null ici : un numéro n'est JAMAIS enregistré depuis un
+        // simple champ (fuite « Firestore-seul » = comptes fantômes à l'OTP).
+        // Il est lié à Firebase Auth via CompletePhoneScreen (linkPhoneCredential),
+        // vers lequel l'inscription redirige juste après.
         await _firestore.collection('users').doc(user.uid).set({
           'name': name,
           'email': email.trim(),
-          'phone': phone,
+          'phone': null,
           'photoUrl': null,
           'preferences': {
             'language': 'fr',
@@ -377,6 +385,100 @@ class AuthService {
   }
 
   // ════════════════════════════════════════════════════════════
+  // LIER un numéro au compte COURANT (Google/Apple/email) via OTP
+  // ════════════════════════════════════════════════════════════
+
+  /// Envoie un SMS pour LIER le numéro au compte déjà connecté — contrairement
+  /// à [signInWithPhone] qui, lui, ouvre/crée une session téléphone. Ici on ne
+  /// fait JAMAIS de `signInWithCredential` : sur auto-récupération (Android) on
+  /// lie directement via [linkPhoneCredential], sinon le code passe par
+  /// [codeSent] et l'écran finalise avec [linkPhoneCredential].
+  Future<void> verifyPhoneForLinking({
+    required String phoneNumber,
+    required Function(String verificationId) codeSent,
+    required Function(String error) verificationFailed,
+    Function()? autoLinked,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      verificationFailed('Session expirée. Reconnectez-vous.');
+      return;
+    }
+    try {
+      await _auth.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted:
+            (firebase_auth.PhoneAuthCredential credential) async {
+          try {
+            await linkPhoneCredential(credential);
+            autoLinked?.call();
+          } catch (e) {
+            verificationFailed(e.toString());
+          }
+        },
+        verificationFailed: (firebase_auth.FirebaseAuthException e) {
+          verificationFailed(_handleAuthException(e));
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          _resendToken = resendToken;
+          codeSent(verificationId);
+        },
+        codeAutoRetrievalTimeout: (_) {},
+        forceResendingToken: _resendToken,
+      );
+    } catch (e) {
+      verificationFailed('Erreur envoi OTP: ${e.toString()}');
+    }
+  }
+
+  /// Lie (1er numéro → `linkWithCredential`) ou remplace (numéro déjà présent →
+  /// `updatePhoneNumber`) le numéro sur le compte COURANT, puis reflète
+  /// `user.phoneNumber` dans Firestore (affichage). La source de vérité reste
+  /// Firebase Auth. Lève un message clair si le numéro appartient à un autre
+  /// compte (`credential-already-in-use`).
+  Future<void> linkPhoneCredential(
+      firebase_auth.PhoneAuthCredential credential) async {
+    final user = _auth.currentUser;
+    if (user == null) throw 'Session expirée. Reconnectez-vous.';
+    try {
+      final hasPhoneProvider =
+          user.providerData.any((p) => p.providerId == 'phone');
+      if (hasPhoneProvider) {
+        await user.updatePhoneNumber(credential);
+      } else {
+        await user.linkWithCredential(credential);
+      }
+      await user.reload();
+      final linked = _auth.currentUser;
+      if (linked?.phoneNumber != null &&
+          linked!.phoneNumber!.trim().isNotEmpty) {
+        await _firestore.collection('users').doc(linked.uid).set(
+          {
+            'phone': linked.phoneNumber,
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+      }
+      debugPrint('✅ [AuthService] Numéro lié au compte: ${linked?.uid}');
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'credential-already-in-use' ||
+          e.code == 'account-exists-with-different-credential' ||
+          e.code == 'phone-number-already-exists') {
+        throw 'Ce numéro est déjà lié à un autre compte.';
+      }
+      if (e.code == 'provider-already-linked') {
+        // Déjà un provider `phone` mais détection ratée : on remplace.
+        await user.updatePhoneNumber(credential);
+        await user.reload();
+        return;
+      }
+      throw _handleAuthException(e);
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
   // RÉINITIALISER mot de passe
   // ════════════════════════════════════════════════════════════
 
@@ -384,6 +486,85 @@ class AuthService {
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
     } on firebase_auth.FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // RÉCUPÉRATION mot de passe par SMS (OTP)
+  // ════════════════════════════════════════════════════════════
+
+  /// Envoie un code OTP SANS ouvrir de session automatiquement (contrairement à
+  /// [signInWithPhone]) : `verificationCompleted` est volontairement un no-op,
+  /// l'utilisateur saisit le code puis on finalise via [signInForPasswordRecovery].
+  Future<void> sendOtpCode({
+    required String phoneNumber,
+    required Function(String verificationId) codeSent,
+    required Function(String error) verificationFailed,
+  }) async {
+    try {
+      await _auth.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: (_) {},
+        verificationFailed: (firebase_auth.FirebaseAuthException e) {
+          verificationFailed(_handleAuthException(e));
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          _resendToken = resendToken;
+          codeSent(verificationId);
+        },
+        codeAutoRetrievalTimeout: (_) {},
+        forceResendingToken: _resendToken,
+      );
+    } catch (e) {
+      verificationFailed('Erreur envoi OTP: ${e.toString()}');
+    }
+  }
+
+  /// Connexion OTP dédiée à la RÉCUPÉRATION de mot de passe. Le compte visé doit
+  /// posséder un provider email/mot de passe. Si le numéro n'est rattaché à aucun
+  /// tel compte, l'OTP créerait un compte fantôme : on le supprime aussitôt et on
+  /// lève une erreur claire (jamais de compte vide généré par une récupération).
+  Future<firebase_auth.User> signInForPasswordRecovery({
+    required String verificationId,
+    required String smsCode,
+  }) async {
+    final credential = firebase_auth.PhoneAuthProvider.credential(
+      verificationId: verificationId,
+      smsCode: smsCode,
+    );
+    final result = await _auth.signInWithCredential(credential);
+    final user = result.user!;
+    final hasPassword =
+        user.providerData.any((p) => p.providerId == 'password');
+    final isNew = result.additionalUserInfo?.isNewUser ?? false;
+
+    if (!hasPassword || user.email == null) {
+      if (isNew) {
+        // Compte fantôme fraîchement créé par cet OTP → suppression immédiate.
+        try {
+          await user.delete();
+        } catch (_) {}
+      }
+      await _auth.signOut();
+      throw 'Aucun compte avec mot de passe n\'est associé à ce numéro. '
+          'Connectez-vous plutôt avec le téléphone, ou utilisez la voie email.';
+    }
+    return user;
+  }
+
+  /// Définit un nouveau mot de passe sur le compte connecté (après OTP de
+  /// récupération). Nécessite une authentification récente — assurée par l'OTP.
+  Future<void> setNewPassword(String newPassword) async {
+    final user = _auth.currentUser;
+    if (user == null) throw 'Session expirée. Recommencez la vérification.';
+    try {
+      await user.updatePassword(newPassword);
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        throw 'Session expirée. Recommencez la vérification par SMS.';
+      }
       throw _handleAuthException(e);
     }
   }

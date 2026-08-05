@@ -56,7 +56,7 @@ class _ResetEmailSentScreenState extends State<ResetEmailSentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Forgot Password"),
+        title: const Text('Mot de passe oublié'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: defaultPadding),
@@ -64,8 +64,9 @@ class _ResetEmailSentScreenState extends State<ResetEmailSentScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             WelcomeText(
-              title: "Reset email sent",
-              text: "We have sent a instructions email to \n${widget.email}",
+              title: 'Email envoyé',
+              text:
+                  'Nous avons envoyé un lien de réinitialisation à \n${widget.email}',
             ),
             const SizedBox(height: defaultPadding),
             
@@ -113,7 +114,7 @@ class _ResetEmailSentScreenState extends State<ResetEmailSentScreen> {
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
-                  : const Text("Send again"),
+                  : const Text('Renvoyer l\'email'),
             ),
 
             const SizedBox(height: defaultPadding),

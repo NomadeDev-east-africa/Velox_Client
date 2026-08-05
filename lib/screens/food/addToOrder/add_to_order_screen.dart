@@ -13,6 +13,7 @@ import '../../../models/promotion.dart';
 import '../../../providers/all_providers.dart';
 import '../../../services/promotion_service.dart';
 import '../../../theme/app_colors.dart';
+import '../orderDetails/order_details_screen.dart';
 
 class AddToOrderScreen extends ConsumerStatefulWidget {
   final MenuItem   menuItem;
@@ -197,6 +198,25 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
         ..showSnackBar(SnackBar(
           content: Text(
             'Maximum 2 sauces incluses. Pour plus de sauces, voir Suppléments.',
+            style: TextStyle(color: _c.onSurface),
+          ),
+          backgroundColor: _c.surfaceHigh,
+          behavior: SnackBarBehavior.floating,
+        ));
+      return;
+    }
+
+    // Plafond générique piloté par l'admin (`maxChoices`, groupes `multiple`
+    // uniquement). 0 = illimité. Bloque l'ajout au-delà, comme l'app Android.
+    if (!group.isSingle &&
+        group.maxChoices > 0 &&
+        !selected.contains(choiceIndex) &&
+        selected.length >= group.maxChoices) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(
+            '${group.maxChoices} choix maximum pour ${group.name}.',
             style: TextStyle(color: _c.onSurface),
           ),
           backgroundColor: _c.surfaceHigh,
@@ -807,7 +827,11 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.shopping_cart_outlined, color: _c.onSurfaceVariant),
-            onPressed: () {},
+            tooltip: 'Voir le panier',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const OrderDetailsScreen()),
+            ),
           ),
         ],
       ),

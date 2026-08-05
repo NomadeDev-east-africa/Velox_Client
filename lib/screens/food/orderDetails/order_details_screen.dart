@@ -765,8 +765,10 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
     }
 
     final userStateCheck = ref.read(userNotifierProvider);
-    final hasPhone = (userStateCheck.phone?.trim().isNotEmpty ?? false) ||
-        (userStateCheck.firebaseUser?.phoneNumber?.isNotEmpty ?? false);
+    // Numéro RÉELLEMENT lié à Auth uniquement : un champ Firestore seul ne rend
+    // pas le client joignable et masquerait un compte non finalisé.
+    final hasPhone =
+        userStateCheck.verifiedPhone?.trim().isNotEmpty ?? false;
     if (!hasPhone) {
       _showSnack('Merci de renseigner votre numéro de téléphone avant de commander',
           backgroundColor: Colors.orange);
@@ -814,7 +816,8 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
 
     final userState = ref.read(userNotifierProvider);
     final customerName  = userState.name  ?? userState.firebaseUser?.displayName ?? 'Client';
-    final customerPhone = userState.phone ?? userState.firebaseUser?.phoneNumber  ?? 'Non renseigné';
+    // Numéro lié à Auth (joignable) ; le reflet Firestore n'est qu'un fallback.
+    final customerPhone = userState.verifiedPhone ?? userState.phone ?? 'Non renseigné';
 
     final cartState = ref.read(cartProvider);
     final subtotal = cartState.items.fold<double>(0, (s, i) => s + i.totalPrice);

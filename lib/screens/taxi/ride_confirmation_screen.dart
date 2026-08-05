@@ -54,7 +54,7 @@ class _RideConfirmationScreenState extends ConsumerState<RideConfirmationScreen>
       return;
     }
 
-    if (userState.displayPhone == null || userState.displayPhone!.trim().isEmpty) {
+    if (userState.verifiedPhone == null || userState.verifiedPhone!.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Merci de renseigner votre numéro de téléphone avant de commander'),
@@ -75,7 +75,7 @@ class _RideConfirmationScreenState extends ConsumerState<RideConfirmationScreen>
       await ref.read(activeRideProvider.notifier).createRide(
         userId:               userState.userId!,
         userName:             userState.displayName,
-        userPhone:            userState.displayPhone ?? '',
+        userPhone:            userState.verifiedPhone ?? '',
         userPhotoUrl:         userState.displayPhotoUrl,
         pickupLatitude:       widget.pickup.location.latitude,
         pickupLongitude:      widget.pickup.location.longitude,

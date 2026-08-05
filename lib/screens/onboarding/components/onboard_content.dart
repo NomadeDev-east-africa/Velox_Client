@@ -15,6 +15,22 @@ class OnboardContent extends StatelessWidget {
   final String? illustration, title, text;
   final AppColors c;
 
+  /// Met en avant le mot « Velox » en vert (couleur de marque) dans le titre.
+  TextSpan _titleSpans() {
+    final parts = (title ?? '').split('Velox');
+    final spans = <TextSpan>[];
+    for (var i = 0; i < parts.length; i++) {
+      if (parts[i].isNotEmpty) spans.add(TextSpan(text: parts[i]));
+      if (i < parts.length - 1) {
+        spans.add(TextSpan(
+          text: 'Velox',
+          style: TextStyle(color: c.primary),
+        ));
+      }
+    }
+    return TextSpan(children: spans);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -28,8 +44,8 @@ class OnboardContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 40),
-          Text(
-            title!,
+          Text.rich(
+            _titleSpans(),
             style: GoogleFonts.poppins(
               color: c.onSurface,
               fontWeight: FontWeight.w700,

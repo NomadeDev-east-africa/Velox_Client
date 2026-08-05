@@ -19,6 +19,8 @@ import 'screens/homeScreen/home_screen_app.dart';
 import 'screens/taxi/tracking_screen.dart';
 import 'screens/food/food_tracking/order_tracking_screen.dart';
 import 'widgets/velox_loader.dart';
+import 'widgets/global_active_order_widget.dart';
+import 'utils/route_tracker.dart';
 
 // ── Providers Riverpod ───────────────────────────────────────────
 import 'providers/all_providers.dart';
@@ -373,8 +375,18 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       navigatorKey: appNavigatorKey,
-      navigatorObservers: [analyticsObserver],
+      navigatorObservers: [analyticsObserver, RouteTracker()],
       title: 'Velox',
+      // Overlay global : la pastille de suivi de commande vit au-dessus du
+      // Navigator, donc elle survit à la navigation entre écrans (accueil /
+      // fiche resto / panier / profil…). Elle se masque elle-même sur les
+      // écrans de suivi et si aucune commande n'est active.
+      builder: (context, child) => Stack(
+        children: [
+          child ?? const SizedBox.shrink(),
+          const GlobalActiveOrderWidget(),
+        ],
+      ),
       onGenerateRoute: (settings) {
         final args = settings.arguments as Map<String, dynamic>? ?? {};
         switch (settings.name) {

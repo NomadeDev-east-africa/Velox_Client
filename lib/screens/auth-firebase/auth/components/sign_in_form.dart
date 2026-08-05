@@ -127,7 +127,7 @@ class _SignInFormState extends State<SignInForm> {
               ),
             ),
             child: Text(
-              "Forget Password?",
+              'Mot de passe oublié ?',
               style: Theme.of(context)
                   .textTheme
                   .bodySmall!

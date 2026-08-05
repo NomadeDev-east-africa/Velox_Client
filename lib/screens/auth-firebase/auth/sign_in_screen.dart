@@ -6,7 +6,6 @@ import 'package:nomade_client/services/notification_service.dart';
 import 'package:nomade_client/screens/HomeScreen/home_screen_app.dart';
 
 import '../../../components/buttons/social_button.dart';
-import '../../../components/welcome_text.dart';
 import '../../../constants.dart';
 import 'complete_phone_screen.dart';
 import 'sign_up_screen.dart';
@@ -110,11 +109,32 @@ class _SignInScreenState extends State<SignInScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const WelcomeText(
-                title: "Welcome to",
-                text:
-                "Enter your Phone number or Email \naddress for sign in. Enjoy your food :)",
+              const SizedBox(height: defaultPadding),
+              Text.rich(
+                TextSpan(
+                  text: 'Bienvenue sur ',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge!
+                      .copyWith(fontWeight: FontWeight.w600),
+                  children: const [
+                    TextSpan(
+                      text: 'Velox',
+                      style: TextStyle(
+                        color: primaryColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(height: defaultPadding / 2),
+              Text(
+                'Entrez votre numéro de téléphone ou votre email pour vous '
+                'connecter. Bon appétit :)',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: defaultPadding),
               const SignInForm(),
               const SizedBox(height: defaultPadding),
               const KOrText(),

@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:nomade_client/components/inputs/djibouti_phone.dart';
 import 'package:nomade_client/providers/all_providers.dart';
+import 'package:nomade_client/screens/auth-firebase/auth/complete_phone_screen.dart';
 import 'package:nomade_client/theme/app_colors.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -19,7 +19,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
 
   late TextEditingController _nameController;
-  late TextEditingController _phoneController;
 
   DateTime? _birthDate;
   bool _isSaving        = false;
@@ -32,10 +31,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     super.initState();
     final userState = ref.read(userNotifierProvider);
     _nameController  = TextEditingController(text: userState.displayName);
-    // Le champ ne contient que les 8 chiffres locaux : l'indicatif +253 est figé
-    // dans le préfixe et rajouté à la sauvegarde.
-    _phoneController =
-        TextEditingController(text: localDigitsFrom(userState.displayPhone));
 
     final bd = userState.userData?['birthDate'];
     if (bd is Timestamp) _birthDate = bd.toDate();
@@ -217,17 +212,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
             const SizedBox(height: 16),
 
-            // ── Téléphone ────────────────────────────────
-            _buildTextField(
-              controller: _phoneController,
-              label: 'Numéro de téléphone',
-              icon: Icons.phone_outlined,
-              hint: '77 XX XX XX',
-              keyboardType: TextInputType.phone,
-              prefix: const DjiboutiPrefix(),
-              inputFormatters: djiboutiPhoneInputFormatters(),
-              validator: (v) => validateDjiboutiPhone(v, required: false),
-            ),
+            // ── Téléphone (lecture seule + OTP) ───────────
+            // Le numéro doit être LIÉ à Firebase Auth via OTP, jamais saisi
+            // librement (un champ Firestore seul recrée les comptes fantômes).
+            _buildPhoneField(userState.verifiedPhone),
 
             const SizedBox(height: 16),
 
@@ -421,6 +409,62 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     );
   }
 
+  /// Numéro lié à Firebase Auth, en lecture seule. Le bouton « Ajouter » /
+  /// « Modifier » ouvre l'écran OTP qui le lie réellement (linkPhoneCredential).
+  Widget _buildPhoneField(String? verifiedPhone) {
+    final has = verifiedPhone != null && verifiedPhone.trim().isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Numéro de téléphone',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: _c.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: _c.surfaceHigh,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _c.outlineVariant.withValues(alpha: 0.5)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.phone_outlined, color: _c.onSurfaceVariant, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  has ? verifiedPhone : 'Non renseigné',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: has ? _c.onSurface : _c.outlineVariant,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CompletePhoneScreen(),
+                    ),
+                  );
+                },
+                child: Text(has ? 'Modifier' : 'Ajouter',
+                    style: TextStyle(
+                        color: _c.primary, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildDateField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -605,10 +649,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final localDigits = _phoneController.text.replaceAll(RegExp(r'\D'), '');
       await ref.read(userNotifierProvider.notifier).updateProfile(
         name: _nameController.text.trim(),
-        phone: localDigits.isEmpty ? null : toE164Djibouti(localDigits),
         birthDate: _birthDate,
       );
 
@@ -640,7 +682,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 }

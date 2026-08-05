@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:nomade_client/services/auth_service.dart';
+import 'phone_recovery_screen.dart';
 import 'reset_email_sent_screen.dart';
 
 import '../../../components/welcome_text.dart';
 import '../../../constants.dart';
 
+/// Récupération de mot de passe — deux voies au choix : par email (lien de
+/// réinitialisation Firebase) ou par SMS/OTP (définition d'un nouveau mot de
+/// passe après vérification du numéro lié au compte).
 class ForgotPasswordScreen extends StatelessWidget {
   const ForgotPasswordScreen({super.key});
 
@@ -12,19 +16,56 @@ class ForgotPasswordScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Forgot Password"),
+        title: const Text('Mot de passe oublié'),
       ),
-      body: const SingleChildScrollView(
-        padding: EdgeInsets.symmetric(horizontal: defaultPadding),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: defaultPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            WelcomeText(
-                title: "Forgot password",
-                text:
-                    "Enter your email address and we will \nsend you a reset instructions."),
-            SizedBox(height: defaultPadding),
-            ForgotPassForm(),
+            const WelcomeText(
+              title: 'Mot de passe oublié',
+              text:
+                  'Choisissez comment réinitialiser votre mot de passe : par '
+                  'email ou par SMS.',
+            ),
+            const SizedBox(height: defaultPadding),
+
+            // ── Voie SMS (OTP → nouveau mot de passe) ──────────────
+            OutlinedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const PhoneRecoveryScreen(),
+                ),
+              ),
+              icon: const Icon(Icons.sms_outlined),
+              label: const Text('Réinitialiser par SMS'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 52),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+            const SizedBox(height: defaultPadding * 1.5),
+
+            Row(
+              children: [
+                const Expanded(child: Divider()),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text('ou par email',
+                      style: Theme.of(context).textTheme.bodySmall),
+                ),
+                const Expanded(child: Divider()),
+              ],
+            ),
+            const SizedBox(height: defaultPadding * 1.5),
+
+            // ── Voie email (lien de réinitialisation Firebase) ─────
+            const _EmailResetForm(),
+            const SizedBox(height: defaultPadding),
           ],
         ),
       ),
@@ -32,14 +73,14 @@ class ForgotPasswordScreen extends StatelessWidget {
   }
 }
 
-class ForgotPassForm extends StatefulWidget {
-  const ForgotPassForm({super.key});
+class _EmailResetForm extends StatefulWidget {
+  const _EmailResetForm();
 
   @override
-  State<ForgotPassForm> createState() => _ForgotPassFormState();
+  State<_EmailResetForm> createState() => _EmailResetFormState();
 }
 
-class _ForgotPassFormState extends State<ForgotPassForm> {
+class _EmailResetFormState extends State<_EmailResetForm> {
   final _formKey = GlobalKey<FormState>();
   final AuthService _authService = AuthService();
   final TextEditingController _emailController = TextEditingController();
@@ -58,11 +99,9 @@ class _ForgotPassFormState extends State<ForgotPassForm> {
     setState(() => _isLoading = true);
 
     try {
-      // Envoyer email de réinitialisation avec Firebase
       await _authService.resetPassword(_emailController.text);
 
       if (mounted) {
-        // SUCCÈS - Navigation vers écran de confirmation
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -73,7 +112,6 @@ class _ForgotPassFormState extends State<ForgotPassForm> {
         );
       }
     } catch (e) {
-      // Erreur
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -96,7 +134,6 @@ class _ForgotPassFormState extends State<ForgotPassForm> {
       key: _formKey,
       child: Column(
         children: [
-          // Email Field
           TextFormField(
             controller: _emailController,
             validator: emailValidator.call,
@@ -104,26 +141,27 @@ class _ForgotPassFormState extends State<ForgotPassForm> {
             textInputAction: TextInputAction.done,
             onFieldSubmitted: (_) => _resetPassword(),
             decoration: const InputDecoration(
-              hintText: "Email Address",
+              hintText: 'Adresse email',
               prefixIcon: Icon(Icons.email),
             ),
             enabled: !_isLoading,
           ),
           const SizedBox(height: defaultPadding),
-
-          // Reset password Button
-          ElevatedButton(
-            onPressed: _isLoading ? null : _resetPassword,
-            child: _isLoading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Text("Reset password"),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _resetPassword,
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text('Envoyer le lien par email'),
+            ),
           ),
         ],
       ),

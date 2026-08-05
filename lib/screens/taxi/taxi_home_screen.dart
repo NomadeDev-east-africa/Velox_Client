@@ -865,6 +865,8 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
               color: drapeauBleu,
               onTap: () { if (_pickupLatLng != null) _mapController.move(_pickupLatLng!, 15); },
             )),
+            // Contrôles zoom (+/−) au-dessus du bouton recentrer
+            Positioned(bottom: 64, right: 16, child: _zoomControls(_mapController)),
             // Badge ajustement
             if (_isAdjustingPickup)
               Positioned(top: 16, left: 16, child: _adjustBadge()),
@@ -879,122 +881,16 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
   // ─────────────────────────────────────────────────────────
   Widget _buildRouteMap() {
     if (_pickupLatLng == null || _destination == null) return const SizedBox.shrink();
-
-    final pickup = _pickupLatLng!;
-    final dest = _destination!.location;
-    final centerLat = (pickup.latitude + dest.latitude) / 2;
-    final centerLng = (pickup.longitude + dest.longitude) / 2;
-    final center = LatLng(centerLat, centerLng);
-
-    // Zoom adaptatif selon la distance
-    double zoom = 14;
-    if (_distanceKm > 20) { zoom = 11; }
-    else if (_distanceKm > 10) { zoom = 12; }
-    else if (_distanceKm > 5) { zoom = 13; }
-    else if (_distanceKm < 2) { zoom = 15; }
-
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.32,
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:0.15), blurRadius: 20, offset: const Offset(0, 8))],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: Stack(
-          children: [
-            FlutterMap(
-              options: MapOptions(
-                initialCenter: center,
-                initialZoom: zoom,
-                maxZoom: 18, minZoom: 8,
-                interactionOptions: const InteractionOptions(
-                  flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-                ),
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-                  userAgentPackageName: 'com.nomade253.app',
-                ),
-                // Ligne route pickup → destination
-                PolylineLayer(polylines: [
-                  Polyline(
-                    points: [pickup, dest],
-                    color: secondaryColor,
-                    strokeWidth: 5,
-                    borderColor: Colors.white.withValues(alpha:0.8),
-                    borderStrokeWidth: 3,
-                  ),
-                ]),
-                MarkerLayer(markers: [
-                  // Marker pickup — dot vert
-                  Marker(
-                    point: pickup, width: 50, height: 50,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: drapeauVert,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: blanc, width: 3),
-                        boxShadow: [BoxShadow(color: drapeauVert.withValues(alpha:0.4), blurRadius: 10)],
-                      ),
-                      child: const Icon(Icons.circle, color: blanc, size: 14),
-                    ),
-                  ),
-                  // Marker destination — pin bleu
-                  Marker(
-                    point: dest, width: 56, height: 66,
-                    child: Icon(
-                      Icons.location_pin,
-                      color: drapeauBleu,
-                      size: 56,
-                      shadows: [Shadow(color: Colors.black.withValues(alpha:0.4), blurRadius: 10, offset: const Offset(0, 5))],
-                    ),
-                  ),
-                ]),
-              ],
-            ),
-
-            // Badge infos trajet (distance + durée)
-            Positioned(
-              bottom: 12, left: 12,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: _c.surfaceLow,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:0.12), blurRadius: 8)],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.straighten, size: 13, color: _c.onSurfaceVariant),
-                    const SizedBox(width: 4),
-                    Text('${_distanceKm.toStringAsFixed(1)} km',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _c.onSurface)),
-                    const SizedBox(width: 10),
-                    Icon(Icons.timer_outlined, size: 13, color: _c.onSurfaceVariant),
-                    const SizedBox(width: 4),
-                    Text('$_durationMin min',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _c.onSurface)),
-                  ],
-                ),
-              ),
-            ),
-
-            // Bouton modifier destination
-            Positioned(
-              top: 12, right: 12,
-              child: _mapFab(
-                icon: Icons.edit_location_alt,
-                color: drapeauBleu,
-                onTap: _openDestinationPicker,
-              ),
-            ),
-          ],
-        ),
-      ),
+    // Carte isolée dans son propre widget : les setState du parent (sélection
+    // véhicule, prix…) ne la reconstruisent plus. Un MapController attaché à une
+    // carte reconstruite en boucle gelait les gestes et le zoom — d'où ce split.
+    return _RouteMapCard(
+      pickup: _pickupLatLng!,
+      dest: _destination!.location,
+      distanceKm: _distanceKm,
+      durationMin: _durationMin,
+      colors: _c,
+      onEditDestination: _openDestinationPicker,
     );
   }
 
@@ -1156,6 +1052,33 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
     );
   }
 
+  /// Change le zoom de la carte `c` d'un cran, en gardant le centre actuel.
+  void _zoomBy(MapController c, double delta) {
+    final cam = c.camera;
+    final z = (cam.zoom + delta).clamp(4.0, 18.0);
+    c.move(cam.center, z);
+  }
+
+  /// Contrôles de zoom (+ / −) empilés, à poser sur une carte VTC.
+  Widget _zoomControls(MapController c) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _mapFab(
+          icon: Icons.add,
+          color: _c.onSurface,
+          onTap: () => _zoomBy(c, 1),
+        ),
+        const SizedBox(height: 8),
+        _mapFab(
+          icon: Icons.remove,
+          color: _c.onSurface,
+          onTap: () => _zoomBy(c, -1),
+        ),
+      ],
+    );
+  }
+
   Widget _adjustBadge() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1172,6 +1095,200 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
           Text(tr('tap_to_move'),
               style: const TextStyle(color: kNeonGreenDark, fontSize: 12, fontWeight: FontWeight.w600)),
         ],
+      ),
+    );
+  }
+}
+
+/// Carte « route » (départ + destination + tracé) isolée dans son propre
+/// StatefulWidget. Elle possède son MapController et ne se reconstruit que si
+/// le trajet change réellement (via didUpdateWidget) — les rebuilds du parent
+/// (sélection véhicule, recalcul prix) ne la touchent plus, ce qui élimine le
+/// gel des gestes/zoom. Contient ses propres contrôles + / −.
+class _RouteMapCard extends StatefulWidget {
+  final LatLng pickup;
+  final LatLng dest;
+  final double distanceKm;
+  final int durationMin;
+  final AppColors colors;
+  final VoidCallback onEditDestination;
+
+  const _RouteMapCard({
+    required this.pickup,
+    required this.dest,
+    required this.distanceKm,
+    required this.durationMin,
+    required this.colors,
+    required this.onEditDestination,
+  });
+
+  @override
+  State<_RouteMapCard> createState() => _RouteMapCardState();
+}
+
+class _RouteMapCardState extends State<_RouteMapCard> {
+  final MapController _controller = MapController();
+
+  static double _zoomFor(double km) {
+    if (km > 20) return 11;
+    if (km > 10) return 12;
+    if (km > 5) return 13;
+    if (km < 2) return 15;
+    return 14;
+  }
+
+  LatLng get _center => LatLng(
+        (widget.pickup.latitude + widget.dest.latitude) / 2,
+        (widget.pickup.longitude + widget.dest.longitude) / 2,
+      );
+
+  @override
+  void didUpdateWidget(covariant _RouteMapCard old) {
+    super.didUpdateWidget(old);
+    // Recadrer UNIQUEMENT si le trajet a réellement changé — pas sur un simple
+    // rebuild parent — sinon on écraserait le zoom manuel de l'utilisateur.
+    if (old.pickup != widget.pickup || old.dest != widget.dest) {
+      _controller.move(_center, _zoomFor(widget.distanceKm));
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _zoomBy(double delta) {
+    final cam = _controller.camera;
+    _controller.move(cam.center, (cam.zoom + delta).clamp(4.0, 18.0));
+  }
+
+  Widget _fab(IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40, height: 40,
+        decoration: BoxDecoration(
+          color: widget.colors.surfaceLow,
+          shape: BoxShape.circle,
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 10, offset: const Offset(0, 3))],
+        ),
+        child: Icon(icon, color: color, size: 18),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.colors;
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.32,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 20, offset: const Offset(0, 8))],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Stack(
+          children: [
+            FlutterMap(
+              mapController: _controller,
+              options: MapOptions(
+                initialCenter: _center,
+                initialZoom: _zoomFor(widget.distanceKm),
+                maxZoom: 18, minZoom: 8,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                ),
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+                  userAgentPackageName: 'com.nomade253.app',
+                ),
+                PolylineLayer(polylines: [
+                  Polyline(
+                    points: [widget.pickup, widget.dest],
+                    color: secondaryColor,
+                    strokeWidth: 5,
+                    borderColor: Colors.white.withValues(alpha: 0.8),
+                    borderStrokeWidth: 3,
+                  ),
+                ]),
+                MarkerLayer(markers: [
+                  Marker(
+                    point: widget.pickup, width: 50, height: 50,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: drapeauVert,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: blanc, width: 3),
+                        boxShadow: [BoxShadow(color: drapeauVert.withValues(alpha: 0.4), blurRadius: 10)],
+                      ),
+                      child: const Icon(Icons.circle, color: blanc, size: 14),
+                    ),
+                  ),
+                  Marker(
+                    point: widget.dest, width: 56, height: 66,
+                    child: Icon(
+                      Icons.location_pin,
+                      color: drapeauBleu,
+                      size: 56,
+                      shadows: [Shadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 5))],
+                    ),
+                  ),
+                ]),
+              ],
+            ),
+
+            // Badge infos trajet (distance + durée)
+            Positioned(
+              bottom: 12, left: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: c.surfaceLow,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8)],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.straighten, size: 13, color: c.onSurfaceVariant),
+                    const SizedBox(width: 4),
+                    Text('${widget.distanceKm.toStringAsFixed(1)} km',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: c.onSurface)),
+                    const SizedBox(width: 10),
+                    Icon(Icons.timer_outlined, size: 13, color: c.onSurfaceVariant),
+                    const SizedBox(width: 4),
+                    Text('${widget.durationMin} min',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: c.onSurface)),
+                  ],
+                ),
+              ),
+            ),
+
+            // Bouton modifier destination
+            Positioned(
+              top: 12, right: 12,
+              child: _fab(Icons.edit_location_alt, drapeauBleu, widget.onEditDestination),
+            ),
+
+            // Contrôles zoom (+ / −)
+            Positioned(
+              bottom: 12, right: 12,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _fab(Icons.add, c.onSurface, () => _zoomBy(1)),
+                  const SizedBox(height: 8),
+                  _fab(Icons.remove, c.onSurface, () => _zoomBy(-1)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -42,11 +42,18 @@ class OptionGroup {
   final bool required;
   final List<OptionChoice> choices;
 
+  /// Nombre maximum de choix sélectionnables — UNIQUEMENT pertinent pour
+  /// `type == multiple`. `0` = illimité (ou champ absent). Ignoré pour `single`
+  /// (la limite y est 1 par nature). Écrit par l'app admin ; le client le lit
+  /// pour bloquer la sélection au-delà, comme l'app Android.
+  final int maxChoices;
+
   const OptionGroup({
     required this.name,
     this.type = OptionType.multiple,
     this.required = false,
     this.choices = const [],
+    this.maxChoices = 0,
   });
 
   bool get isSingle => type == OptionType.single;
@@ -58,6 +65,7 @@ class OptionGroup {
       name: (map['name'] ?? '').toString(),
       type: rawType == 'single' ? OptionType.single : OptionType.multiple,
       required: map['required'] == true,
+      maxChoices: (map['maxChoices'] as num?)?.toInt() ?? 0,
       choices: rawChoices is List
           ? rawChoices
               .whereType<Map>()
@@ -71,6 +79,9 @@ class OptionGroup {
         'name': name,
         'type': isSingle ? 'single' : 'multiple',
         'required': required,
+        // Champ additif : on ne l'écrit que s'il est réellement défini (>0),
+        // pour ne pas polluer les plats sans plafond (aligné sur l'app admin).
+        if (maxChoices > 0) 'maxChoices': maxChoices,
         'choices': choices.map((c) => c.toMap()).toList(),
       };
 

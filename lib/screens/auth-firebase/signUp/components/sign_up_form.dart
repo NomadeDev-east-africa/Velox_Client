@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:nomade_client/components/inputs/djibouti_phone.dart';
 import 'package:nomade_client/services/auth_service.dart';
-import 'package:nomade_client/screens/HomeScreen/home_screen_app.dart';
+import 'package:nomade_client/screens/auth-firebase/auth/complete_phone_screen.dart';
 import 'package:nomade_client/constants.dart';
 import 'package:nomade_client/services/notification_service.dart';
 import 'package:nomade_client/translations/app_translations.dart';
@@ -41,23 +41,25 @@ class _SignUpFormState extends State<SignUpForm> {
     setState(() => _isLoading = true);
 
     try {
-      // Inscription avec Firebase
+      // Inscription avec Firebase (sans numéro : il sera LIÉ à Auth via OTP)
       final user = await _authService.signUpWithEmailPassword(
         email: _emailController.text,
         password: _passwordController.text,
         name: _nameController.text,
-        phone: toE164Djibouti(_phoneController.text),
       );
 
       if (user != null && mounted) {
         // ✅ Rafraîchir le token FCM après inscription
         await NotificationService().refreshTokenForUser();
         if (!mounted) return;
-        // SUCCÈS - Navigation vers home
+        // Le compte email n'a pas encore de numéro lié à Auth : on passe par
+        // l'écran OTP (numéro saisi pré-rempli) pour le lier réellement, au
+        // lieu de l'écrire seulement dans Firestore (comptes fantômes).
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
-            builder: (context) => const HomeScreenApp(),
+            builder: (context) =>
+                CompletePhoneScreen(initialPhone: _phoneController.text),
           ),
               (_) => false,
         );

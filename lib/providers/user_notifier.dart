@@ -57,7 +57,15 @@ class UserState {
   }
 
   String? get displayPhotoUrl => photoUrl ?? firebaseUser?.photoURL;
+
+  /// Numéro affiché (peut venir du reflet Firestore).
   String? get displayPhone    => phone  ?? firebaseUser?.phoneNumber;
+
+  /// Numéro RÉELLEMENT lié à Firebase Auth (provider `phone`) — seule valeur
+  /// fiable pour décider si le compte est joignable par OTP. À utiliser pour
+  /// tout gating « numéro obligatoire » ; un champ Firestore seul ne compte pas.
+  String? get verifiedPhone   => firebaseUser?.phoneNumber;
+
   bool   get isEmailVerified  => firebaseUser?.emailVerified ?? false;
 
   UserState copyWith({
@@ -238,9 +246,12 @@ class UserNotifier extends StateNotifier<UserState> {
 
   // ─── MISE À JOUR PROFIL ───────────────────────────────────────
 
+  /// Met à jour le profil. ⚠️ `phone` n'est volontairement PAS un paramètre :
+  /// un numéro ne peut être posé que via un OTP qui le LIE à Firebase Auth
+  /// (CompletePhoneScreen → AuthService.linkPhoneCredential). Écrire `phone`
+  /// ici ne toucherait que Firestore et recréerait le bug des comptes fantômes.
   Future<void> updateProfile({
     String? name,
-    String? phone,
     String? photoUrl,
     DateTime? birthDate,
   }) async {
@@ -250,7 +261,6 @@ class UserNotifier extends StateNotifier<UserState> {
     try {
       final updates = <String, dynamic>{};
       if (name      != null) updates['name']      = name;
-      if (phone     != null) updates['phone']      = phone;
       if (photoUrl  != null) updates['photoUrl']   = photoUrl;
       if (birthDate != null) updates['birthDate']  = Timestamp.fromDate(birthDate);
 
