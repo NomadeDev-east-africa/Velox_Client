@@ -19,11 +19,16 @@ class RideConfirmationScreen extends ConsumerStatefulWidget {
   final Place       destination;
   final TripDetails tripDetails;
 
+  /// Géométrie routière déjà calculée sur l'écran précédent. Vide si l'API
+  /// d'itinéraire a échoué : on retombe alors sur la droite départ → arrivée.
+  final List<LatLng> routePoints;
+
   const RideConfirmationScreen({
     super.key,
     required this.pickup,
     required this.destination,
     required this.tripDetails,
+    this.routePoints = const [],
   });
 
   @override
@@ -265,10 +270,12 @@ class _RideConfirmationScreenState extends ConsumerState<RideConfirmationScreen>
               PolylineLayer(
                 polylines: [
                   Polyline(
-                    points: [
-                      widget.pickup.location,
-                      widget.destination.location,
-                    ],
+                    points: widget.routePoints.length >= 2
+                        ? widget.routePoints
+                        : [
+                            widget.pickup.location,
+                            widget.destination.location,
+                          ],
                     strokeWidth: 3,
                     color: _c.primary.withValues(alpha: 0.6),
                   ),

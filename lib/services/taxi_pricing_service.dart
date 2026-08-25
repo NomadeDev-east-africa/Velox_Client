@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../data/mock_taxi_data.dart';
 import '../models/ride_choice.dart';
 
@@ -14,19 +17,34 @@ class TaxiTariff {
   final double includedKm;
   final double pricePerKm;
 
-  /// Un barème incomplet ou à zéro est rejeté au profit du repli local :
-  /// mieux vaut un tarif figé correct qu'un tarif nul affiché au client.
-  bool get isUsable => basePrice > 0 && pricePerKm > 0 && includedKm >= 0;
-
-  static TaxiTariff? fromMap(dynamic raw) {
+  /// Construit un barème en repartant du véhicule local pour tout champ absent.
+  ///
+  /// Repli **champ par champ** et non tout-ou-rien : un document admin qui ne
+  /// renseigne qu'une partie des valeurs doit quand même appliquer ce qu'il
+  /// contient. Seul un `basePrice` nul ou négatif fait rejeter le barème —
+  /// `pricePerKm` à 0 est légitime (tarif forfaitaire) et ne doit surtout pas
+  /// provoquer un retour silencieux aux prix codés en dur.
+  static TaxiTariff? fromMap(dynamic raw, RideChoice fallback) {
     if (raw is! Map) return null;
     final map = Map<String, dynamic>.from(raw);
+
     final tariff = TaxiTariff(
-      basePrice: (map['basePrice'] as num?)?.toDouble() ?? 0,
-      includedKm: (map['includedKm'] as num?)?.toDouble() ?? 0,
-      pricePerKm: (map['pricePerKm'] as num?)?.toDouble() ?? 0,
+      basePrice:
+          (map['basePrice'] as num?)?.toDouble() ?? fallback.basePrice,
+      includedKm:
+          (map['includedKm'] as num?)?.toDouble() ?? fallback.includedKm,
+      pricePerKm:
+          (map['pricePerKm'] as num?)?.toDouble() ?? fallback.pricePerKm,
     );
-    return tariff.isUsable ? tariff : null;
+
+    if (tariff.basePrice <= 0 || tariff.pricePerKm < 0 ||
+        tariff.includedKm < 0) {
+      if (kDebugMode) {
+        debugPrint('⚠️ [TaxiPricing] barème rejeté (valeurs invalides): $map');
+      }
+      return null;
+    }
+    return tariff;
   }
 }
 
@@ -55,17 +73,57 @@ class TaxiPricingService {
         .collection('config')
         .doc('taxiPricing')
         .snapshots()
-        .map((doc) => _merge(doc.data()));
+        .map((doc) {
+      if (!doc.exists) {
+        if (kDebugMode) {
+          debugPrint('⚠️ [TaxiPricing] config/taxiPricing INEXISTANT '
+              '→ repli local (prix codés en dur)');
+        }
+        return MockTaxiData.rideChoices;
+      }
+      final data = doc.data();
+      if (kDebugMode) {
+        debugPrint('✅ [TaxiPricing] config/taxiPricing lu, clés: '
+            '${data?.keys.toList()}');
+      }
+      return merge(data);
+    }).transform(
+      // `handleError` avalait l'erreur sans rien émettre : Firestore terminant
+      // le flux sur échec, le provider restait indéfiniment en chargement et
+      // aucun consommateur ne pouvait voir la panne. On journalise PUIS on
+      // émet explicitement le repli, pour que l'app reste utilisable.
+      StreamTransformer<List<RideChoice>, List<RideChoice>>.fromHandlers(
+        handleError: (error, stackTrace, sink) {
+          if (kDebugMode) {
+            debugPrint('❌ [TaxiPricing] lecture échouée: $error');
+          }
+          sink.add(MockTaxiData.rideChoices);
+        },
+      ),
+    );
   }
 
   /// Applique le barème Firestore au catalogue local (images, noms, places et
   /// options restent locaux ; seuls les prix viennent de la config).
-  static List<RideChoice> _merge(Map<String, dynamic>? data) {
+  @visibleForTesting
+  static List<RideChoice> merge(Map<String, dynamic>? data) {
     return MockTaxiData.rideChoices.map((choice) {
       final key = _tierKeys[choice.type];
-      final tariff =
-          (key == null || data == null) ? null : TaxiTariff.fromMap(data[key]);
-      if (tariff == null) return choice; // repli local pour CE véhicule
+      final tariff = (key == null || data == null)
+          ? null
+          : TaxiTariff.fromMap(data[key], choice);
+      if (tariff == null) {
+        if (kDebugMode) {
+          debugPrint('⚠️ [TaxiPricing] pas de barème exploitable pour "$key" '
+              '→ repli local ${choice.basePrice}/${choice.includedKm}km/'
+              '${choice.pricePerKm}');
+        }
+        return choice; // repli local pour CE véhicule
+      }
+      if (kDebugMode) {
+        debugPrint('✅ [TaxiPricing] $key = ${tariff.basePrice} base, '
+            '${tariff.includedKm} km inclus, ${tariff.pricePerKm}/km');
+      }
       return choice.copyWith(
         basePrice: tariff.basePrice,
         includedKm: tariff.includedKm,

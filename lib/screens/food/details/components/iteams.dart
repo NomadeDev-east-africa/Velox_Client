@@ -27,6 +27,9 @@ class _ItemsState extends State<Items> {
   List<String>    _categories  = [];
   List<Promotion> _promotions  = [];
   String          _selectedCategory = '';
+  /// Index de la catégorie active — la sélection se fait par position et non
+  /// par libellé, deux entrées pouvant porter le même nom.
+  int             _selectedIndex = -1;
   bool            _isLoading   = true;
 
   @override
@@ -56,6 +59,7 @@ class _ItemsState extends State<Items> {
       _categories       = categories;
       _promotions       = promotions;
       _selectedCategory = categories.isNotEmpty ? categories.last : '';
+      _selectedIndex    = categories.length - 1;
       _isLoading        = false;
     });
   }
@@ -96,49 +100,87 @@ class _ItemsState extends State<Items> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Onglets catégories ─────────────────────────────────────
-        DefaultTabController(
-          length: _categories.length,
-          // « Tous » est le dernier onglet mais celui sélectionné à l'ouverture.
-          // `_categories` est garanti non vide ici (garde plus haut).
-          initialIndex: _categories.length - 1,
-          child: TabBar(
-            isScrollable: true,
-            // La catégorie sélectionnée passe en vert accent (parité Android) :
-            // sans `labelColor`, Material retombait sur la couleur de texte
-            // normale, rendant la sélection peu visible.
-            labelColor: Theme.of(context).colorScheme.primary,
-            indicatorColor: Theme.of(context).colorScheme.primary,
-            unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
-            labelStyle: Theme.of(context).textTheme.titleLarge,
-            onTap: (i) => setState(() => _selectedCategory = _categories[i]),
-            tabs: _categories.map((category) {
+        // ── Catégories ─────────────────────────────────────────────
+        // Rangée défilante maison plutôt qu'un TabBar : un TabBar scrollable
+        // se recale toujours sur l'onglet actif, or « Tous » est sélectionné
+        // par défaut ET affiché en dernier — la barre s'ouvrait donc calée à
+        // droite, masquant les premières catégories. Ici la position de départ
+        // reste à gauche, indépendamment de la sélection.
+        // Hauteur libre plutôt que fixe : avec les réglages d'accessibilité
+        // iOS (« Texte plus grand »), une hauteur figée découpait les noms de
+        // catégorie et déclenchait un débordement.
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: defaultPadding),
+          child: Row(
+            children: List.generate(_categories.length * 2 - 1, (slot) {
+              if (slot.isOdd) return const SizedBox(width: 20);
+              final i = slot ~/ 2;
+              final category = _categories[i];
+              // Sélection par index : deux catégories homonymes (un plat rangé
+              // dans une catégorie littéralement nommée « Tous ») seraient
+              // sinon surlignées ensemble.
+              final isSelected = i == _selectedIndex;
               final hasPromo = _categoryHasPromo(category);
-              return Tab(
-                child: Stack(
-                  clipBehavior: Clip.none,
+              final scheme = Theme.of(context).colorScheme;
+
+              return Semantics(
+                button: true,
+                selected: isSelected,
+                child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() {
+                  _selectedIndex = i;
+                  _selectedCategory = category;
+                }),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Padding(
-                      padding: EdgeInsets.only(right: hasPromo ? 8 : 0),
-                      child: Text(category),
-                    ),
-                    if (hasPromo)
-                      Positioned(
-                        top: -2,
-                        right: 0,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF6EFF6E),
-                            shape: BoxShape.circle,
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.only(right: hasPromo ? 8 : 0),
+                          child: Text(
+                            category,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  color: isSelected
+                                      ? scheme.primary
+                                      : scheme.onSurfaceVariant,
+                                ),
                           ),
                         ),
-                      ),
+                        if (hasPromo)
+                          Positioned(
+                            top: -2,
+                            right: 0,
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF6EFF6E),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    // Soulignement de l'onglet actif, équivalent de l'indicator
+                    // du TabBar remplacé.
+                    Container(
+                      height: 2,
+                      width: 28,
+                      color: isSelected ? scheme.primary : Colors.transparent,
+                    ),
                   ],
                 ),
+                ),
               );
-            }).toList(),
+            }),
           ),
         ),
 

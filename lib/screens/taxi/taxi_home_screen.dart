@@ -75,6 +75,11 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
   double _distanceKm = 0;
   int _durationMin = 0;
   bool _isComputingRoute = false;
+
+  /// Géométrie routière renvoyée par `getRoute`, utilisée pour DESSINER le
+  /// trajet. Vide tant que l'itinéraire n'est pas calculé (ou si l'API a
+  /// échoué) : on retombe alors sur la droite pickup → destination.
+  List<LatLng> _routePoints = const [];
   // Incrémenté à chaque nouvelle destination : une réponse getRoute tardive
   // portant un id périmé est ignorée (anti-écrasement par une course obsolète).
   int _routeRequestId = 0;
@@ -291,6 +296,8 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
       _durationMin = _locationService.calculateETA(straight);
       _restorableDestinationName.value = dest.name;
       _isComputingRoute = true;
+      // Nouvelle destination : l'ancien tracé ne vaut plus rien.
+      _routePoints = const [];
     });
 
     try {
@@ -305,6 +312,11 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
       setState(() {
         _distanceKm  = route.distance;
         _durationMin = route.duration;
+        // La géométrie était calculée puis jetée : le tracé bleu reliait
+        // pickup et destination en ligne droite, à travers les bâtiments.
+        _routePoints = route.coordinates
+            .map((c) => LatLng(c.latitude, c.longitude))
+            .toList();
         _isComputingRoute = false;
       });
     } catch (e) {
@@ -325,6 +337,7 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
       _destination   = null;
       _distanceKm    = 0;
       _durationMin   = 0;
+      _routePoints   = const [];
       _restorableDestinationName.value = null;
     });
     if (_pickupLatLng != null) {
@@ -363,6 +376,7 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
           pickup: pickupPlace,
           destination: _destination!,
           tripDetails: tripDetails,
+          routePoints: _routePoints,
         ),
       ),
     ).then((_) {
@@ -898,6 +912,7 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
     return _RouteMapCard(
       pickup: _pickupLatLng!,
       dest: _destination!.location,
+      routePoints: _routePoints,
       distanceKm: _distanceKm,
       durationMin: _durationMin,
       colors: _c,
@@ -1119,6 +1134,11 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
 class _RouteMapCard extends StatefulWidget {
   final LatLng pickup;
   final LatLng dest;
+
+  /// Géométrie routière à tracer. Vide tant que l'itinéraire est en cours de
+  /// calcul ou si l'API a échoué : on trace alors la droite pickup → dest.
+  final List<LatLng> routePoints;
+
   final double distanceKm;
   final int durationMin;
   final AppColors colors;
@@ -1127,6 +1147,7 @@ class _RouteMapCard extends StatefulWidget {
   const _RouteMapCard({
     required this.pickup,
     required this.dest,
+    required this.routePoints,
     required this.distanceKm,
     required this.durationMin,
     required this.colors,
@@ -1160,6 +1181,21 @@ class _RouteMapCardState extends State<_RouteMapCard> {
     // rebuild parent — sinon on écraserait le zoom manuel de l'utilisateur.
     if (old.pickup != widget.pickup || old.dest != widget.dest) {
       _controller.move(_center, _zoomFor(widget.distanceKm));
+      return;
+    }
+    // La géométrie routière arrive ~1 s après le choix de la destination. Une
+    // route contourne, donc elle sort régulièrement du rectangle départ↔arrivée
+    // sur lequel le cadrage initial était calculé : sans ce recadrage, une
+    // partie du tracé nouvellement dessiné reste hors de la carte.
+    if (old.routePoints != widget.routePoints &&
+        widget.routePoints.length >= 2) {
+      _controller.fitCamera(
+        CameraFit.coordinates(
+          coordinates: widget.routePoints,
+          padding: const EdgeInsets.all(28),
+          maxZoom: 17,
+        ),
+      );
     }
   }
 
@@ -1220,7 +1256,11 @@ class _RouteMapCardState extends State<_RouteMapCard> {
                 ),
                 PolylineLayer(polylines: [
                   Polyline(
-                    points: [widget.pickup, widget.dest],
+                    // Le tracé suit les routes dès que la géométrie est
+                    // disponible ; la droite ne reste qu'un état transitoire.
+                    points: widget.routePoints.length >= 2
+                        ? widget.routePoints
+                        : [widget.pickup, widget.dest],
                     color: secondaryColor,
                     strokeWidth: 5,
                     borderColor: Colors.white.withValues(alpha: 0.8),

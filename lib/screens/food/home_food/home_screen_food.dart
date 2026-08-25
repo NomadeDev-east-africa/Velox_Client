@@ -239,12 +239,25 @@ class _AutoScrollCarouselState extends State<_AutoScrollCarousel> {
     _startAutoScroll();
   }
 
+  /// Dernière page réellement atteignable.
+  ///
+  /// Avec `viewportFraction < 1`, plusieurs éléments tiennent à l'écran : les
+  /// derniers ne peuvent pas se caler en tête, faute d'espace pour défiler.
+  /// Avec 4 éléments à 0.5, la page 3 n'existe pas — `animateToPage(3)` était
+  /// plafonné à 2, le carrousel se figeait là et ne revenait jamais à 0.
+  int get _maxPage {
+    final visible = 1 / widget.viewportFraction;
+    final last = (widget.itemCount - visible).floor();
+    return last < 0 ? 0 : last;
+  }
+
   void _startAutoScroll() {
     _autoTimer?.cancel();
-    if (widget.itemCount <= 1) return;
+    // Rien à faire défiler : tout le contenu tient dans le viewport.
+    if (_maxPage <= 0) return;
     _autoTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (_paused || !_pageController.hasClients) return;
-      final next = (_currentPage + 1) % widget.itemCount;
+      final next = _currentPage >= _maxPage ? 0 : _currentPage + 1;
       _pageController.animateToPage(
         next,
         duration: const Duration(milliseconds: 500),
@@ -266,7 +279,7 @@ class _AutoScrollCarouselState extends State<_AutoScrollCarousel> {
   void didUpdateWidget(covariant _AutoScrollCarousel old) {
     super.didUpdateWidget(old);
     if (old.itemCount != widget.itemCount) {
-      if (_currentPage >= widget.itemCount) _currentPage = 0;
+      if (_currentPage > _maxPage) _currentPage = 0;
       _startAutoScroll();
     }
   }
@@ -303,11 +316,15 @@ class _AutoScrollCarouselState extends State<_AutoScrollCarousel> {
             ),
           ),
         ),
-        const SizedBox(height: 10),
+        // Une pastille par position atteignable, pas par élément : sinon les
+        // dernières ne s'allument jamais, et une longue liste produit une
+        // rangée de points illisible.
+        if (_maxPage > 0) const SizedBox(height: 10),
+        if (_maxPage > 0)
         Wrap(
           alignment: WrapAlignment.center,
           children: List.generate(
-            widget.itemCount,
+            _maxPage + 1,
             (i) => AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               margin: const EdgeInsets.symmetric(horizontal: 3),
