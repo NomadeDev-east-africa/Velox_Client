@@ -13,10 +13,13 @@ import '../utils/route_tracker.dart';
 ///
 /// Montée une seule fois dans `MaterialApp.builder`, elle survit à la navigation
 /// impérative (accueil / fiche resto / panier / profil…). Elle possède SA PROPRE
-/// fenêtre de visibilité : elle reste affichée **1 min après livraison**,
-/// indépendamment du nettoyage à 4 s de `ActiveOrderNotifier` (qu'on ne touche
-/// pas). Masquée sur les écrans de suivi eux-mêmes et si l'utilisateur n'est pas
-/// connecté. Tap → ouvre `OrderTrackingScreen`.
+/// fenêtre de visibilité : elle reste affichée **8 s après livraison**, comptées
+/// depuis `deliveredAt` et non depuis l'instant où le widget découvre la
+/// commande — une commande livrée il y a longtemps et restaurée depuis Hive ne
+/// doit pas réapparaître. Indépendante du nettoyage à 4 s de
+/// `ActiveOrderNotifier` (qu'on ne touche pas). Masquée sur les écrans de suivi
+/// eux-mêmes et si l'utilisateur n'est pas connecté. Tap → ouvre
+/// `OrderTrackingScreen`.
 class GlobalActiveOrderWidget extends ConsumerStatefulWidget {
   const GlobalActiveOrderWidget({super.key});
 
@@ -28,9 +31,9 @@ class GlobalActiveOrderWidget extends ConsumerStatefulWidget {
 class _GlobalActiveOrderWidgetState
     extends ConsumerState<GlobalActiveOrderWidget>
     with SingleTickerProviderStateMixin {
-  static const _postDeliveryWindow = Duration(minutes: 1);
+  static const _postDeliveryWindow = Duration(seconds: 8);
 
-  /// Commande actuellement affichée (active OU livrée dans la fenêtre de 60 s).
+  /// Commande actuellement affichée (active OU livrée dans la fenêtre de 8 s).
   Order? _displayOrder;
   DateTime? _completedAt;
   Timer? _hideTimer;
@@ -67,14 +70,14 @@ class _GlobalActiveOrderWidgetState
     super.dispose();
   }
 
-  /// Met à jour la commande affichée + la fenêtre 60 s à partir de l'état du
+  /// Met à jour la commande affichée + la fenêtre 8 s à partir de l'état du
   /// notifier. `silent` (initState) évite un setState avant le premier build.
   void _applyState(ActiveOrderState next, {bool silent = false}) {
     final order = next.order;
 
     if (order == null) {
       // Notifier vidé (4 s après terminal). On NE cache que si on n'est pas
-      // dans la fenêtre post-livraison — sinon le Timer 60 s s'en charge.
+      // dans la fenêtre post-livraison — sinon le Timer 8 s s'en charge.
       if (_completedAt == null) {
         _clearDisplay(silent: silent);
       }
@@ -87,9 +90,17 @@ class _GlobalActiveOrderWidgetState
     }
 
     if (order.status == Order.statusCompleted) {
+      // Fenêtre comptée depuis `deliveredAt` : au lancement, une commande
+      // livrée hier et restaurée depuis Hive doit rester masquée.
+      final deliveredAt = order.deliveredAt?.toDate() ?? DateTime.now();
+      final remaining = _postDeliveryWindow - DateTime.now().difference(deliveredAt);
+      if (remaining <= Duration.zero) {
+        _clearDisplay(silent: silent);
+        return;
+      }
       _displayOrder = order;
-      _completedAt ??= DateTime.now();
-      _hideTimer ??= Timer(_postDeliveryWindow, () => _clearDisplay());
+      _completedAt ??= deliveredAt;
+      _hideTimer ??= Timer(remaining, () => _clearDisplay());
     } else {
       // Commande active (pending → delivering).
       _displayOrder = order;
@@ -146,6 +157,15 @@ class _GlobalActiveOrderWidgetState
     // Réagit aux changements du notifier (le stream met à jour le statut).
     ref.listen<ActiveOrderState>(activeOrderProvider, (prev, next) {
       _applyState(next);
+    });
+
+    // Déconnexion / changement de compte : `user_notifier` invalide bien
+    // `activeOrderProvider`, mais la fenêtre post-livraison locale survivrait à
+    // cette invalidation et afficherait la commande du compte précédent.
+    ref.listen(userNotifierProvider, (prev, next) {
+      if (prev != null && prev.isAuthenticated && !next.isAuthenticated) {
+        _clearDisplay();
+      }
     });
 
     final isDark = ref.watch(themeNotifierProvider).isDarkMode;

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nomade_client/models/ride_choice.dart';
-import 'package:nomade_client/data/mock_taxi_data.dart';
+import 'package:nomade_client/providers/all_providers.dart';
 import 'package:nomade_client/theme/app_colors.dart';
 import 'ride_choice_card.dart';
 
 /// Liste des choix de véhicules
-class RideChoicesList extends StatefulWidget {
+class RideChoicesList extends ConsumerStatefulWidget {
   const RideChoicesList({
     super.key,
     required this.distance,
@@ -20,27 +21,27 @@ class RideChoicesList extends StatefulWidget {
   final AppColors c;
 
   @override
-  State<RideChoicesList> createState() => _RideChoicesListState();
+  ConsumerState<RideChoicesList> createState() => _RideChoicesListState();
 }
 
-class _RideChoicesListState extends State<RideChoicesList> {
-  late RideChoice selectedRide;
+class _RideChoicesListState extends ConsumerState<RideChoicesList> {
+  /// Véhicule sélectionné, mémorisé par ID : la liste est rechargée dès que
+  /// l'admin change les tarifs, et l'instance `RideChoice` change avec elle.
+  String? _selectedRideId;
 
   @override
   void initState() {
     super.initState();
-    // Sélectionner le premier véhicule par défaut
-    selectedRide = widget.selectedRideId != null
-        ? MockTaxiData.allRideChoices.firstWhere(
-          (r) => r.id == widget.selectedRideId,
-      orElse: () => MockTaxiData.defaultRideChoice,
-    )
-        : MockTaxiData.defaultRideChoice;
+    _selectedRideId = widget.selectedRideId;
   }
 
   @override
   Widget build(BuildContext context) {
-    final rideChoices = MockTaxiData.allRideChoices;
+    final rideChoices = ref.watch(rideChoicesProvider);
+    final selectedRide = rideChoices.firstWhere(
+      (r) => r.id == _selectedRideId,
+      orElse: () => rideChoices.first,
+    );
 
     return ListView.separated(
       // CORRECTION: Permet le scroll et enlève shrinkWrap
@@ -58,7 +59,7 @@ class _RideChoicesListState extends State<RideChoicesList> {
           c: widget.c,
           onTap: () {
             setState(() {
-              selectedRide = ride;
+              _selectedRideId = ride.id;
             });
             widget.onRideSelected(ride);
           },

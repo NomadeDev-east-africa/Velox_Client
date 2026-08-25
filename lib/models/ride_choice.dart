@@ -9,6 +9,7 @@ class RideChoice {
     required this.seats,
     required this.basePrice,
     required this.pricePerKm,
+    this.includedKm = 0,
     this.estimatedArrivalTime,
     this.description,
     this.features,
@@ -32,8 +33,11 @@ class RideChoice {
   /// Prix de base (FDJ)
   final double basePrice;
 
-  /// Prix par kilomètre (FDJ)
+  /// Prix par kilomètre (FDJ), facturé au-delà de [includedKm]
   final double pricePerKm;
+
+  /// Kilomètres déjà couverts par [basePrice]
+  final double includedKm;
 
   /// Temps d'arrivée estimé (ex: "5 min")
   final String? estimatedArrivalTime;
@@ -44,9 +48,15 @@ class RideChoice {
   /// Caractéristiques (ex: ["Climatisation", "WiFi"])
   final List<String>? features;
 
-  /// Calculer le prix total selon la distance
+  /// Calculer le prix total selon la distance.
+  ///
+  /// Formule partagée avec l'app Android et les Cloud Functions
+  /// (`onTaxiRideCreated` / `onRideUpdated` recalculent `estimatedFare` et
+  /// `finalFare` avec exactement ce calcul) : toute divergence ferait afficher
+  /// au client un prix différent de celui qui lui est facturé.
   double calculatePrice(double distanceKm) {
-    return basePrice + (pricePerKm * distanceKm);
+    final billableKm = distanceKm - includedKm;
+    return basePrice + pricePerKm * (billableKm > 0 ? billableKm : 0);
   }
 
   /// Copie avec modifications
@@ -58,6 +68,7 @@ class RideChoice {
     int? seats,
     double? basePrice,
     double? pricePerKm,
+    double? includedKm,
     String? estimatedArrivalTime,
     String? description,
     List<String>? features,
@@ -70,6 +81,7 @@ class RideChoice {
       seats: seats ?? this.seats,
       basePrice: basePrice ?? this.basePrice,
       pricePerKm: pricePerKm ?? this.pricePerKm,
+      includedKm: includedKm ?? this.includedKm,
       estimatedArrivalTime: estimatedArrivalTime ?? this.estimatedArrivalTime,
       description: description ?? this.description,
       features: features ?? this.features,

@@ -215,6 +215,8 @@ class CartNotifier extends StateNotifier<CartState> {
     String? customerName,
     String? customerPhone,
     int pointsUsed = 0,
+    String? promoCode,
+    int promoDiscount = 0,
   }) async {
     if (state.isEmpty || state.selectedRestaurant == null) {
       debugPrint('❌ [CartNotifier] Panier vide ou restaurant null');
@@ -244,6 +246,15 @@ class CartNotifier extends StateNotifier<CartState> {
       final safePoints = pointsUsed.clamp(0, maxByDelivery);
       final discount = safePoints * kPointValue;
 
+      // Le code promo n'est transmis que s'il porte réellement une remise ; le
+      // trigger `onOrderCreated` revalide de toute façon le couple
+      // code/montant côté serveur et le corrige si besoin.
+      final safePromoCode =
+          (promoDiscount > 0 && (promoCode?.trim().isNotEmpty ?? false))
+              ? promoCode!.trim().toUpperCase()
+              : null;
+      final safePromoDiscount = safePromoCode == null ? 0 : promoDiscount;
+
       final order = Order(
         id: '',
         userId: userId,
@@ -263,6 +274,8 @@ class CartNotifier extends StateNotifier<CartState> {
         updatedAt: Timestamp.now(),
         pointsUsed: safePoints,
         discount: discount,
+        promoCode: safePromoCode,
+        promoDiscount: safePromoDiscount,
       );
 
       final orderId = await OrderService().createOrder(order);
@@ -304,6 +317,8 @@ class CartNotifier extends StateNotifier<CartState> {
         updatedAt:        order.updatedAt,
         pointsUsed:       order.pointsUsed,
         discount:         order.discount,
+        promoCode:        order.promoCode,
+        promoDiscount:    order.promoDiscount,
       );
 
       // Débiter les points utilisés (non bloquant)

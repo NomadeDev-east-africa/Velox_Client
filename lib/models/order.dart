@@ -42,6 +42,16 @@ class Order {
   /// Réduction appliquée (FDJ) = pointsUsed × kPointValue.
   final int discount;
 
+  // ─── Code promo ──────────────────────────────────────────────
+  /// Code promo appliqué (en MAJUSCULES), `null` si aucun.
+  final String? promoCode;
+  /// Réduction (FDJ) accordée par le code promo.
+  ///
+  /// Toujours la valeur `discountAmount` renvoyée par la Cloud Function
+  /// `validatePromoCode` — jamais un calcul local. Le trigger `onOrderCreated`
+  /// la réévalue côté serveur à la création de la commande.
+  final int promoDiscount;
+
   // ─── Statuts ─────────────────────────────────────────────────
 
   static const String statusPending    = 'pending';
@@ -81,13 +91,21 @@ class Order {
     this.estimatedPreparationTime,
     this.pointsUsed = 0,
     this.discount = 0,
+    this.promoCode,
+    this.promoDiscount = 0,
   });
 
   // ─── Getters calculés ────────────────────────────────────────
 
   int get itemCount  => items.fold(0, (acc, item) => acc + item.quantity);
   int get subtotal   => items.fold(0, (acc, item) => acc + item.totalPrice);
-  int get total      => subtotal + deliveryFee - discount;
+
+  /// Total facturé, jamais négatif : les deux réductions cumulées (fidélité +
+  /// code promo) peuvent dépasser le montant de la commande.
+  int get total {
+    final t = subtotal + deliveryFee - discount - promoDiscount;
+    return t < 0 ? 0 : t;
+  }
 
   bool get canBeCancelled =>
       status == statusPending ||
@@ -126,6 +144,7 @@ class Order {
       'deliveryFee': deliveryFee,
       'pointsUsed': pointsUsed,
       'discount': discount,
+      'promoDiscount': promoDiscount,
       'total': total,
       'status': status,
       'paymentMethod': paymentMethod,
@@ -134,6 +153,9 @@ class Order {
       'updatedAt': updatedAt,
     };
 
+    if (promoCode != null && promoCode!.isNotEmpty) {
+      map['promoCode'] = promoCode;
+    }
     if (deliveryLocation != null) {
       map['deliveryLocation'] = deliveryLocation;
     }
@@ -195,6 +217,8 @@ class Order {
       deliveryFee: data['deliveryFee'] ?? 500,
       pointsUsed: ((data['pointsUsed'] ?? 0) as num).toInt(),
       discount: ((data['discount'] ?? 0) as num).toInt(),
+      promoCode: data['promoCode'],
+      promoDiscount: ((data['promoDiscount'] ?? 0) as num).toInt(),
       status: data['status'] ?? statusPending,
       paymentMethod: data['paymentMethod'] ?? 'cash',
       deliveryAddress: data['deliveryAddress'] ?? '',
@@ -234,6 +258,8 @@ class Order {
       'deliveryFee': deliveryFee,
       'pointsUsed': pointsUsed,
       'discount': discount,
+      'promoCode': promoCode,
+      'promoDiscount': promoDiscount,
       'status': status,
       'paymentMethod': paymentMethod,
       'deliveryAddress': deliveryAddress,
@@ -295,6 +321,8 @@ class Order {
       deliveryFee: json['deliveryFee'] ?? 500,
       pointsUsed: ((json['pointsUsed'] ?? 0) as num).toInt(),
       discount: ((json['discount'] ?? 0) as num).toInt(),
+      promoCode: json['promoCode'],
+      promoDiscount: ((json['promoDiscount'] ?? 0) as num).toInt(),
       status: json['status'] ?? statusPending,
       paymentMethod: json['paymentMethod'] ?? 'cash',
       deliveryAddress: json['deliveryAddress'] ?? '',
@@ -346,6 +374,8 @@ class Order {
     int? estimatedPreparationTime,
     int? pointsUsed,
     int? discount,
+    String? promoCode,
+    int? promoDiscount,
   }) {
     return Order(
       id: id ?? this.id,
@@ -376,6 +406,8 @@ class Order {
           estimatedPreparationTime ?? this.estimatedPreparationTime,
       pointsUsed: pointsUsed ?? this.pointsUsed,
       discount: discount ?? this.discount,
+      promoCode: promoCode ?? this.promoCode,
+      promoDiscount: promoDiscount ?? this.promoDiscount,
     );
   }
 

@@ -39,6 +39,17 @@ export 'order_stats_provider.dart';    // orderStatsProvider
 // ── Historique commandes utilisateur ─────────────────────────────
 export 'user_orders_provider.dart';    // userOrdersProvider
 
+// ── Historique courses VTC utilisateur ───────────────────────────
+export 'user_rides_provider.dart';     // userRidesProvider
+
+// ── Bannières promo pilotées par l'admin ─────────────────────────
+export 'banner_provider.dart';         // bannersProvider
+
+// ── Tarifs VTC pilotés depuis Firestore ──────────────────────────
+export 'taxi_pricing_provider.dart';
+// rideChoicesProvider        ← catalogue tarifé (repli local automatique)
+// defaultRideChoiceProvider  ← véhicule par défaut
+
 // ── Favoris restaurants ───────────────────────────────────────────
 export 'favorites_notifier.dart';      // favoritesNotifierProvider
 

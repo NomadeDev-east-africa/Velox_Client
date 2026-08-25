@@ -18,6 +18,8 @@ class PendingOrderScreen extends ConsumerStatefulWidget {
     this.customerName,
     this.customerPhone,
     required this.pointsUsed,
+    this.promoCode,
+    this.promoDiscount = 0,
     required this.subtotal,
     required this.deliveryFee,
     required this.total,
@@ -31,6 +33,8 @@ class PendingOrderScreen extends ConsumerStatefulWidget {
   final String? customerName;
   final String? customerPhone;
   final int pointsUsed;
+  final String? promoCode;
+  final int promoDiscount;
   final double subtotal;
   final double deliveryFee;
   final double total;
@@ -91,6 +95,8 @@ class _PendingOrderScreenState extends ConsumerState<PendingOrderScreen>
             customerName: widget.customerName,
             customerPhone: widget.customerPhone,
             pointsUsed: widget.pointsUsed,
+            promoCode: widget.promoCode,
+            promoDiscount: widget.promoDiscount,
           );
 
       if (!mounted) return;
@@ -215,6 +221,12 @@ class _PendingOrderScreenState extends ConsumerState<PendingOrderScreen>
               if (widget.pointsUsed > 0) ...[
                 const SizedBox(height: 8),
                 _summaryRow(c, 'Points utilisés', '- ${widget.pointsUsed} pts',
+                    valueColor: Colors.green),
+              ],
+              if (widget.promoDiscount > 0) ...[
+                const SizedBox(height: 8),
+                _summaryRow(c, 'Code ${widget.promoCode ?? ''}'.trim(),
+                    '- ${widget.promoDiscount} FDJ',
                     valueColor: Colors.green),
               ],
               const Divider(height: 24),

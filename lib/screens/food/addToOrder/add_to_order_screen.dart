@@ -123,13 +123,22 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
   static int _categoryPriority(String name) {
     final n = _normalize(name);
     if (n.contains('formule') || n.contains('taille') || n.contains('format') || n.contains('size')) return 0;
-    // Les boissons suivent la formule qui les débloque : les reléguer en fin de
-    // liste ferait apparaître le groupe hors écran au moment du clic sur Menu.
-    if (_isDrinksGroup(name)) return 1;
-    if (n.contains('sauce')) return 2;
-    if (n.contains('legume') || n.contains('veget')) return 3;
-    if (n.contains('supplement') || n.contains('extra')) return 4;
-    return 5;
+    // Les viandes juste après la formule : choix structurant du plat, à faire
+    // avant les sauces et les accompagnements.
+    if (_isMeatGroup(name)) return 1;
+    // Les boissons restent près de la formule qui les débloque : les reléguer en
+    // fin de liste ferait apparaître le groupe hors écran au clic sur Menu.
+    if (_isDrinksGroup(name)) return 2;
+    if (n.contains('sauce')) return 3;
+    if (n.contains('legume') || n.contains('veget')) return 4;
+    if (n.contains('supplement') || n.contains('extra')) return 5;
+    return 6;
+  }
+
+  /// Groupe de choix de viande / protéine.
+  static bool _isMeatGroup(String name) {
+    final n = _normalize(name);
+    return n.contains('viande') || n.contains('meat') || n.contains('proteine');
   }
 
   static bool _isSauceGroup(String name) => _normalize(name).contains('sauce');

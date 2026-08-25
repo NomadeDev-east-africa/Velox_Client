@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:nomade_client/models/order.dart';
+import 'package:nomade_client/models/ride.dart';
 import 'package:nomade_client/providers/all_providers.dart';
 import 'package:nomade_client/theme/app_colors.dart';
 import 'package:nomade_client/translations/app_translations.dart';
@@ -38,6 +39,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
     _c = isDark ? AppColors.dark : AppColors.light;
 
     final ordersAsync = ref.watch(userOrdersProvider);
+    final ridesAsync  = ref.watch(userRidesProvider);
 
     return Scaffold(
       backgroundColor: _c.bg,
@@ -81,14 +83,20 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
         loading: () => Center(child: CircularProgressIndicator(color: _c.primary)),
         error: (e, _) => _buildError(e),
         data: (orders) {
-          final active = orders.where((o) => o.isActive).toList();
-          final past   = orders.where((o) => !o.isActive).toList();
+          // Les courses ne bloquent pas l'affichage des commandes : en cours de
+          // chargement ou en erreur, la section courses est simplement absente.
+          final rides = ridesAsync.asData?.value ?? const <Ride>[];
+
+          final activeOrders = orders.where((o) => o.isActive).toList();
+          final pastOrders   = orders.where((o) => !o.isActive).toList();
+          final activeRides  = rides.where((r) => r.isActive).toList();
+          final pastRides    = rides.where((r) => !r.isActive).toList();
 
           return TabBarView(
             controller: _tabController,
             children: [
-              _buildOrderList(active, isActive: true),
-              _buildOrderList(past,   isActive: false),
+              _buildTab(activeOrders, activeRides, isActive: true),
+              _buildTab(pastOrders,   pastRides,   isActive: false),
             ],
           );
         },
@@ -146,15 +154,90 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
 
   // ── Liste ─────────────────────────────────────────────────────
 
-  Widget _buildOrderList(List<Order> orders, {required bool isActive}) {
-    if (orders.isEmpty) {
-      return _buildEmpty(isActive);
+  /// Un onglet = section commandes food + section courses VTC, chacune
+  /// précédée de son en-tête (icône + compteur) et masquée si vide.
+  Widget _buildTab(List<Order> orders, List<Ride> rides,
+      {required bool isActive}) {
+    if (orders.isEmpty && rides.isEmpty) {
+      return RefreshIndicator(
+        color: _c.primary,
+        backgroundColor: _c.surfaceLow,
+        onRefresh: _refresh,
+        // Le pull-to-refresh exige une zone défilable même quand elle est vide.
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.6,
+              child: _buildEmpty(isActive),
+            ),
+          ],
+        ),
+      );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-      itemCount: orders.length,
-      itemBuilder: (context, i) => _buildOrderCard(orders[i], isActive: isActive),
+    return RefreshIndicator(
+      color: _c.primary,
+      backgroundColor: _c.surfaceLow,
+      onRefresh: _refresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        children: [
+          if (orders.isNotEmpty) ...[
+            _sectionHeader(
+                Icons.restaurant_menu, tr('my_orders'), orders.length),
+            const SizedBox(height: 12),
+            ...orders.map((o) => _buildOrderCard(o, isActive: isActive)),
+          ],
+          if (orders.isNotEmpty && rides.isNotEmpty)
+            const SizedBox(height: 12),
+          if (rides.isNotEmpty) ...[
+            _sectionHeader(Icons.local_taxi, 'Mes courses', rides.length),
+            const SizedBox(height: 12),
+            ...rides.map((r) => _buildRideCard(r, isActive: isActive)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _refresh() async {
+    ref.invalidate(userRidesProvider);
+    await ref.read(userRidesProvider.future);
+  }
+
+  Widget _sectionHeader(IconData icon, String label, int count) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: _c.primary),
+        const SizedBox(width: 8),
+        Text(
+          label.toUpperCase(),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            color: _c.onSurface,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: _c.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            '$count',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: _c.primary,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -292,14 +375,8 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: statusColor,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
+                        Icon(_statusIcon(order.status),
+                            size: 13, color: statusColor),
                         const SizedBox(width: 6),
                         Text(
                           Order.getStatusText(order.status),
@@ -610,6 +687,187 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
   }
 
   // ── Helpers ───────────────────────────────────────────────────
+
+  // ── Carte course VTC ──────────────────────────────────────────
+
+  Widget _buildRideCard(Ride ride, {required bool isActive}) {
+    final statusColor = _rideStatusColor(ride.status);
+    final date = DateFormat('dd MMM · HH:mm', 'fr_FR').format(ride.requestedAt);
+    final fare = (ride.finalFare ?? ride.estimatedFare).round();
+    final destination = ride.destination.placeName?.trim().isNotEmpty == true
+        ? ride.destination.placeName!
+        : ride.destination.address;
+
+    return GestureDetector(
+      // TrackingScreen lit la course depuis `activeRideProvider` : la route
+      // n'a de sens que pour la course en cours, d'où le tap inactif sur
+      // l'historique terminé.
+      onTap: isActive
+          ? () => Navigator.of(context).pushNamed('/ride-tracking',
+              arguments: {'rideId': ride.rideId})
+          : null,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: _c.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: _c.outlineVariant.withValues(alpha: 0.3)),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: _c.surfaceHigh,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.local_taxi, color: _c.primary, size: 26),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          destination,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: _c.onSurface,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '${ride.distance.toStringAsFixed(1)} km · $fare FDJ',
+                          style: TextStyle(
+                              fontSize: 13, color: _c.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    date,
+                    style: TextStyle(fontSize: 11, color: _c.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, color: _c.outlineVariant.withValues(alpha: 0.25)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(_rideStatusIcon(ride.status),
+                            size: 13, color: statusColor),
+                        const SizedBox(width: 6),
+                        Text(
+                          _rideStatusText(ride.status),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: statusColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  if (isActive)
+                    Row(
+                      children: [
+                        Text(
+                          tr('track'),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _c.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(Icons.arrow_forward_ios,
+                            size: 12, color: _c.primary),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Statuts ───────────────────────────────────────────────────
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case Order.statusPending:    return Icons.hourglass_empty;
+      case Order.statusConfirmed:
+      case Order.statusAccepted:   return Icons.thumb_up_alt_outlined;
+      case Order.statusPreparing:  return Icons.soup_kitchen_outlined;
+      case Order.statusReady:      return Icons.shopping_bag_outlined;
+      case Order.statusDelivering: return Icons.delivery_dining;
+      case Order.statusCompleted:  return Icons.check_circle;
+      case Order.statusCancelled:  return Icons.cancel;
+      default:                     return Icons.help_outline;
+    }
+  }
+
+  String _rideStatusText(RideStatus status) {
+    switch (status) {
+      case RideStatus.requested:         return 'Recherche d\'un chauffeur';
+      case RideStatus.accepted:          return 'Chauffeur en route';
+      case RideStatus.arriving:          return 'Chauffeur en approche';
+      case RideStatus.arrived:           return 'Chauffeur arrivé';
+      case RideStatus.started:           return 'Course en cours';
+      case RideStatus.completed:         return 'Terminée';
+      case RideStatus.cancelled:         return 'Annulée';
+      case RideStatus.noDriverAvailable: return 'Aucun chauffeur disponible';
+    }
+  }
+
+  IconData _rideStatusIcon(RideStatus status) {
+    switch (status) {
+      case RideStatus.requested:         return Icons.hourglass_empty;
+      case RideStatus.accepted:
+      case RideStatus.arriving:          return Icons.directions_car;
+      case RideStatus.arrived:           return Icons.pin_drop_outlined;
+      case RideStatus.started:           return Icons.navigation_outlined;
+      case RideStatus.completed:         return Icons.check_circle;
+      case RideStatus.cancelled:         return Icons.cancel;
+      case RideStatus.noDriverAvailable: return Icons.person_off_outlined;
+    }
+  }
+
+  Color _rideStatusColor(RideStatus status) {
+    switch (status) {
+      case RideStatus.requested:         return const Color(0xFFFF9800);
+      case RideStatus.accepted:
+      case RideStatus.arriving:
+      case RideStatus.arrived:           return const Color(0xFF2196F3);
+      case RideStatus.started:           return const Color(0xFF9C27B0);
+      case RideStatus.completed:         return const Color(0xFF4CAF50);
+      case RideStatus.cancelled:         return const Color(0xFFF44336);
+      case RideStatus.noDriverAvailable: return const Color(0xFF757575);
+    }
+  }
 
   Color _statusColor(String status) {
     switch (status) {

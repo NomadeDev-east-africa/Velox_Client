@@ -133,7 +133,17 @@ class MockTaxiData {
 
   // ========== TYPES DE VÉHICULES ==========
 
-  /// Liste des types de véhicules disponibles
+  /// Catalogue des véhicules — **repli local uniquement**.
+  ///
+  /// Les tarifs réels sont pilotés par le document Firestore
+  /// `config/taxiPricing` (cf. `TaxiPricingService` / `rideChoicesProvider`) :
+  /// l'admin doit pouvoir les changer sans nouvelle soumission App Store. Les
+  /// valeurs ci-dessous ne servent que si ce document est absent, vide ou
+  /// illisible, et sont **identiques** au repli Android (`TaxiCatalog.choices`)
+  /// et à celui des Cloud Functions (`DEFAULT_TAXI_PRICING`).
+  ///
+  /// Ne consommez pas cette liste directement dans l'UI : passez par
+  /// `rideChoicesProvider`, sinon le prix affiché diverge du prix facturé.
   static final List<RideChoice> rideChoices = [
     const RideChoice(
       id: 'taxi_standard',
@@ -141,8 +151,9 @@ class MockTaxiData {
       type: RideType.standard,
       imagePath: 'assets/vehicule/taxi-B.png',
       seats: 4,
-      basePrice: 500,
-      pricePerKm: 135,
+      basePrice: 600,
+      includedKm: 3,
+      pricePerKm: 200,
       estimatedArrivalTime: '~5 min',
       description: 'Économique et rapide',
       features: ['4 places'],
@@ -153,8 +164,9 @@ class MockTaxiData {
       type: RideType.comfort,
       imagePath: 'assets/vehicule/taxi-A.png',
       seats: 4,
-      basePrice: 650,
-      pricePerKm: 135,
+      basePrice: 750,
+      includedKm: 3,
+      pricePerKm: 200,
       estimatedArrivalTime: '~7 min',
       description: 'Plus de confort pour vos trajets',
       features: ['Climatisation', 'WiFi', 'Eau fraîche'],

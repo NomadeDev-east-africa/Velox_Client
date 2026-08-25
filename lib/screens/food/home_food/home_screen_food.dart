@@ -11,10 +11,13 @@ import 'package:nomade_client/screens/food/details/details_screen.dart';
 import 'package:nomade_client/screens/food/home_food/category_items_screen.dart';
 import 'package:nomade_client/screens/food/featured/featured_screen.dart';
 import 'package:nomade_client/screens/food/search/food_search_screen.dart';
+import 'package:nomade_client/models/promo_banner.dart';
 import 'package:nomade_client/services/menu_service.dart';
+import 'package:nomade_client/services/restaurant_service.dart';
 import 'package:nomade_client/translations/app_translations.dart';
 import 'package:nomade_client/providers/all_providers.dart';
 import 'package:nomade_client/theme/app_colors.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -129,7 +132,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     const SizedBox(height: 16),
                     _CategoryRow(c: c),
                     const SizedBox(height: 28),
-                    _PromoBanner(c: c),
+                    _PromoBannerSection(c: c),
                     const SizedBox(height: 28),
                     _sectionHeader(
                       'MEILLEURS CHOIX',
@@ -489,12 +492,53 @@ class _CategoryRowState extends State<_CategoryRow> {
 }
 
 // ════════════════════════════════════════════════════════════
-// PROMO BANNER
+// PROMO BANNERS — pilotées par l'admin (collection `banners`)
 // ════════════════════════════════════════════════════════════
 
-class _PromoBanner extends StatelessWidget {
+/// Hauteur commune à toutes les bannières (le carrousel impose une hauteur
+/// fixe, et le texte s'adapte à l'intérieur plutôt que l'inverse).
+const double _kBannerHeight = 160;
+
+/// Carrousel de bannières lu en temps réel depuis Firestore.
+///
+/// Pendant le chargement, en erreur (invité non connecté, réseau) ou si l'admin
+/// n'a publié aucune bannière active, on affiche la bannière par défaut plutôt
+/// qu'un trou dans l'accueil.
+class _PromoBannerSection extends ConsumerWidget {
   final AppColors c;
-  const _PromoBanner({required this.c});
+  const _PromoBannerSection({required this.c});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final banners = ref.watch(bannersProvider);
+
+    final list = banners.asData?.value ?? const <PromoBanner>[];
+    if (list.isEmpty) return _DefaultPromoBanner(c: c);
+
+    if (list.length == 1) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: _BannerCard(banner: list.first, c: c),
+      );
+    }
+
+    return _AutoScrollCarousel(
+      itemCount: list.length,
+      height: _kBannerHeight,
+      viewportFraction: 1,
+      c: c,
+      itemBuilder: (_, i) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: _BannerCard(banner: list[i], c: c),
+      ),
+    );
+  }
+}
+
+/// Bannière de repli, affichée quand aucune bannière admin n'est disponible.
+class _DefaultPromoBanner extends StatelessWidget {
+  final AppColors c;
+  const _DefaultPromoBanner({required this.c});
 
   @override
   Widget build(BuildContext context) {
@@ -502,6 +546,7 @@ class _PromoBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: SizedBox(
         width: double.infinity,
+        height: _kBannerHeight,
         child: Container(
           color: c.primary,
           padding: const EdgeInsets.all(24),
@@ -545,6 +590,199 @@ class _PromoBanner extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Une bannière admin : rendu texte (fond coloré plein) ou image.
+class _BannerCard extends StatelessWidget {
+  final PromoBanner banner;
+  final AppColors c;
+  const _BannerCard({required this.banner, required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    final card = ClipRRect(
+      // Coins arrondis comme les autres cartes de l'accueil : la bannière était
+      // le seul bloc à angles vifs.
+      borderRadius: BorderRadius.circular(16),
+      child: SizedBox(
+        width: double.infinity,
+        height: _kBannerHeight,
+        child: banner.type == BannerType.image ? _buildImage() : _buildText(),
+      ),
+    );
+
+    if (!banner.isTappable) return card;
+
+    return GestureDetector(
+      onTap: () => _handleTap(context),
+      child: card,
+    );
+  }
+
+  Widget _buildImage() {
+    return CachedNetworkImage(
+      imageUrl: banner.imageUrl,
+      // fitWidth : l'image occupe toute la largeur, un léger rognage vertical
+      // est accepté. `cover` rognait trop, `contain` laissait des bandes vides.
+      fit: BoxFit.fitWidth,
+      width: double.infinity,
+      placeholder: (_, _) => Container(color: c.surfaceLow),
+      errorWidget: (_, _, _) => Container(
+        color: c.surfaceLow,
+        alignment: Alignment.center,
+        child: Icon(Icons.image_not_supported_outlined,
+            color: c.onSurfaceVariant, size: 32),
+      ),
+    );
+  }
+
+  Widget _buildText() {
+    return Container(
+      color: c.primary,
+      padding: const EdgeInsets.all(24),
+      // stretch : le texte dispose de toute la largeur de la carte, pas
+      // seulement de la largeur de ses propres glyphes.
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (banner.title.trim().isNotEmpty)
+            _ShrinkText(
+              text: banner.title,
+              maxLines: 2,
+              minFontSize: 14,
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: c.onPrimary,
+                height: 1.1,
+                letterSpacing: -0.5,
+              ),
+            ),
+          if (banner.title.trim().isNotEmpty &&
+              banner.subtitle.trim().isNotEmpty)
+            const SizedBox(height: 10),
+          if (banner.subtitle.trim().isNotEmpty)
+            _ShrinkText(
+              text: banner.subtitle,
+              maxLines: 2,
+              minFontSize: 10,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: c.onPrimary.withValues(alpha: 0.8),
+                height: 1.4,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleTap(BuildContext context) async {
+    final value = banner.actionValue!.trim();
+
+    switch (banner.actionType) {
+      case BannerActionType.whatsapp:
+        await _openExternal(context, 'https://wa.me/$value');
+      case BannerActionType.url:
+        await _openExternal(context, value);
+      case BannerActionType.category:
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CategoryItemsScreen(category: value),
+          ),
+        );
+      case BannerActionType.restaurant:
+        final restaurant = await RestaurantService().getRestaurantById(value);
+        if (!context.mounted) return;
+        if (restaurant == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Restaurant introuvable')),
+          );
+          return;
+        }
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DetailsScreen(restaurant: restaurant),
+          ),
+        );
+      case BannerActionType.none:
+        break;
+    }
+  }
+
+  /// launchUrl peut lever (PlatformException) si aucune app ne gère le lien —
+  /// WhatsApp non installé, par exemple.
+  Future<void> _openExternal(BuildContext context, String rawUrl) async {
+    final uri = Uri.tryParse(rawUrl);
+    bool launched = false;
+    if (uri != null) {
+      try {
+        launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } catch (_) {
+        launched = false;
+      }
+    }
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d\'ouvrir ce lien')),
+      );
+    }
+  }
+}
+
+/// Texte qui réduit sa police jusqu'à [minFontSize] pour tenir sur [maxLines],
+/// et ne coupe en ellipsis qu'en tout dernier recours.
+///
+/// Le texte des bannières est saisi librement par l'admin : sa longueur est
+/// inconnue au moment du build, d'où l'ajustement à la mise en page.
+class _ShrinkText extends StatelessWidget {
+  const _ShrinkText({
+    required this.text,
+    required this.style,
+    required this.maxLines,
+    required this.minFontSize,
+  });
+
+  final String text;
+  final TextStyle style;
+  final int maxLines;
+  final double minFontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth;
+        final maxFontSize = style.fontSize ?? 14;
+        final textScaler = MediaQuery.textScalerOf(context);
+        final direction = Directionality.of(context);
+
+        var fitting = minFontSize;
+        for (var size = maxFontSize; size >= minFontSize; size -= 0.5) {
+          final painter = TextPainter(
+            text: TextSpan(text: text, style: style.copyWith(fontSize: size)),
+            maxLines: maxLines,
+            textDirection: direction,
+            textScaler: textScaler,
+          )..layout(maxWidth: maxWidth);
+          if (!painter.didExceedMaxLines) {
+            fitting = size;
+            break;
+          }
+        }
+
+        return Text(
+          text,
+          maxLines: maxLines,
+          overflow: TextOverflow.ellipsis,
+          style: style.copyWith(fontSize: fitting),
+        );
+      },
     );
   }
 }

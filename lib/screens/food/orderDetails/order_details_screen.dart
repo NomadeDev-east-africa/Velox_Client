@@ -11,6 +11,7 @@ import 'package:nomade_client/screens/auth-firebase/auth/complete_phone_screen.d
 import 'package:nomade_client/screens/auth-firebase/auth/sign_in_screen.dart';
 import 'package:nomade_client/screens/food/food_tracking/delivery_address_picker_screen.dart';
 import 'package:nomade_client/screens/food/pending_order/pending_order_screen.dart';
+import 'package:nomade_client/services/promo_code_service.dart';
 import 'package:nomade_client/services/restaurant_service.dart';
 import 'package:nomade_client/theme/app_colors.dart';
 
@@ -33,6 +34,20 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
   String? _deliveryAddress;
   String? _deliveryAddressName;
   LatLng? _deliveryLocation;
+
+  // ── Code promo ────────────────────────────────────────────
+  final TextEditingController _promoController = TextEditingController();
+  final PromoCodeService _promoService = PromoCodeService();
+  /// Code validé par le serveur, `null` tant qu'aucun code n'est appliqué.
+  PromoCodeResult? _appliedPromo;
+  String? _promoError;
+  bool _isValidatingPromo = false;
+
+  @override
+  void dispose() {
+    _promoController.dispose();
+    super.dispose();
+  }
 
   // ── Palette dynamique (light / dark) ──────────────────────
   late Color _accent;
@@ -63,6 +78,22 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
     _textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
     _disabledBg    = isDark ? const Color(0xFF424242) : Colors.grey.shade300;
 
+    // Le montant de la remise est calculé par le serveur pour un panier donné :
+    // dès que le panier ou le restaurant change, il n'est plus valable. On
+    // efface le code appliqué et l'utilisateur le retape s'il le souhaite.
+    ref.listen<CartState>(cartProvider, (previous, next) {
+      if (previous == null || _appliedPromo == null) return;
+      final changed = previous.subtotal != next.subtotal ||
+          previous.deliveryFee != next.deliveryFee ||
+          previous.selectedRestaurant?.id != next.selectedRestaurant?.id;
+      if (changed) {
+        setState(() {
+          _appliedPromo = null;
+          _promoError = 'Panier modifié : réappliquez votre code promo';
+        });
+      }
+    });
+
     final cart = ref.watch(cartProvider);
 
     if (cart.isEmpty) return _buildEmptyCart();
@@ -92,6 +123,8 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
                   _buildPaymentSection(),
                   const SizedBox(height: 24),
                   _buildPointsSection(available, maxUsable, pointsApplied),
+                  const SizedBox(height: 24),
+                  _buildPromoSection(cart),
                   const SizedBox(height: 24),
                   _buildSummarySection(cart, pointsApplied, discount),
                   const SizedBox(height: 16),
@@ -590,12 +623,184 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
   }
 
   // ════════════════════════════════════════════════════════════
+  // CODE PROMO
+  // ════════════════════════════════════════════════════════════
+
+  Widget _buildPromoSection(CartState cart) {
+    final applied = _appliedPromo;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _card,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.local_offer_outlined, color: _accent, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Code promo',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: _textPrimary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (applied != null)
+            Row(
+              children: [
+                Icon(Icons.check_circle, color: _accent, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Code appliqué (${applied.code}) : −${applied.discountAmount} FDJ',
+                    style: TextStyle(
+                        color: _accent,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    _promoController.clear();
+                    setState(() {
+                      _appliedPromo = null;
+                      _promoError = null;
+                    });
+                  },
+                  child: Text(tr('remove'),
+                      style: TextStyle(color: Colors.red[300], fontSize: 12)),
+                ),
+              ],
+            )
+          else ...[
+            // Champ puis bouton empilés, et non côte à côte : même structure que
+            // la section fidélité (bouton pleine largeur), qui s'affiche
+            // correctement. Une bordure explicite est indispensable — le fond du
+            // champ et celui de la carte sont deux gris quasi identiques en
+            // thème sombre.
+            TextField(
+              controller: _promoController,
+              enabled: !_isValidatingPromo,
+              textCapitalization: TextCapitalization.characters,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _applyPromoCode(cart),
+              style: TextStyle(color: _textPrimary, fontSize: 15),
+              decoration: InputDecoration(
+                hintText: 'Ex : WELCOME10',
+                hintStyle: TextStyle(color: _textSecondary, fontSize: 14),
+                prefixIcon: Icon(Icons.confirmation_number_outlined,
+                    color: _textSecondary, size: 20),
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                filled: true,
+                fillColor: _itemCard,
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                      color: _textSecondary.withValues(alpha: 0.5)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: _accent, width: 1.6),
+                ),
+                disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                      color: _textSecondary.withValues(alpha: 0.25)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed:
+                    _isValidatingPromo ? null : () => _applyPromoCode(cart),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _accent,
+                  foregroundColor: _onAccent,
+                  minimumSize: const Size(0, 46),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                  disabledBackgroundColor: _disabledBg,
+                  disabledForegroundColor: _textSecondary,
+                ),
+                child: _isValidatingPromo
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: _textSecondary),
+                      )
+                    : const Text('Appliquer',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+          // Erreur non bloquante : l'utilisateur peut corriger et réessayer.
+          if (_promoError != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _promoError!,
+              style: TextStyle(color: Colors.red[300], fontSize: 12),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _applyPromoCode(CartState cart) async {
+    final restaurantId = cart.selectedRestaurant?.id;
+    if (restaurantId == null) {
+      setState(() => _promoError = 'Aucun restaurant sélectionné');
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _isValidatingPromo = true;
+      _promoError = null;
+    });
+
+    final result = await _promoService.validate(
+      code: _promoController.text,
+      restaurantId: restaurantId,
+      subtotal: cart.subtotal,
+      deliveryFee: cart.deliveryFee,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _isValidatingPromo = false;
+      if (result.valid) {
+        _appliedPromo = result;
+        _promoError = null;
+      } else {
+        _appliedPromo = null;
+        _promoError = result.message;
+      }
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════
   // SUMMARY
   // ════════════════════════════════════════════════════════════
 
   Widget _buildSummarySection(
       CartState cart, int pointsApplied, int discount) {
-    final total = cart.total - discount;
+    final promoDiscount = _appliedPromo?.discountAmount ?? 0;
+    // Les deux réductions cumulées peuvent dépasser le montant : jamais négatif.
+    final total = (cart.total - discount - promoDiscount).clamp(0, 1 << 31);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -611,6 +816,11 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
             const SizedBox(height: 10),
             _summaryRow(
                 '${tr('delivery_discount')} ($pointsApplied ${tr('points_short')})', '−$discount FDJ'),
+          ],
+          if (promoDiscount > 0) ...[
+            const SizedBox(height: 10),
+            _summaryRow('Code promo (${_appliedPromo!.code})',
+                '−$promoDiscount FDJ'),
           ],
           const Divider(height: 24, color: Color(0xFFE0C4B4)),
           Row(
@@ -823,7 +1033,10 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
     final subtotal = cartState.items.fold<double>(0, (s, i) => s + i.totalPrice);
     final deliveryFee = cartState.deliveryFee.toDouble();
     final pointsDiscount = _pointsApplied * kPointValue;
-    final total = (subtotal + deliveryFee - pointsDiscount).clamp(0.0, double.infinity);
+    // Toujours le montant renvoyé par `validatePromoCode`, jamais un calcul local.
+    final promoDiscount = (_appliedPromo?.discountAmount ?? 0).toDouble();
+    final total = (subtotal + deliveryFee - pointsDiscount - promoDiscount)
+        .clamp(0.0, double.infinity);
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -836,6 +1049,8 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
           customerName: customerName,
           customerPhone: customerPhone,
           pointsUsed: _pointsApplied,
+          promoCode: _appliedPromo?.code,
+          promoDiscount: promoDiscount.toInt(),
           subtotal: subtotal,
           deliveryFee: deliveryFee,
           total: total,
@@ -844,7 +1059,165 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
     );
   }
 
+  /// Choix de l'adresse de livraison : d'abord le carnet d'adresses de
+  /// l'utilisateur, la carte restant disponible pour une adresse ponctuelle.
+  ///
+  /// Sans aucune adresse enregistrée, on ouvre directement la carte plutôt que
+  /// d'imposer une feuille vide.
   Future<void> _pickAddress() async {
+    var addressState = ref.read(addressNotifierProvider);
+    // Le notifier charge à sa création, éventuellement avant la connexion :
+    // on relit une fois si le carnet est vide.
+    if (addressState.addresses.isEmpty && !addressState.isLoading) {
+      await ref.read(addressNotifierProvider.notifier).loadAddresses();
+      if (!mounted) return;
+      addressState = ref.read(addressNotifierProvider);
+    }
+
+    final saved = addressState.addresses;
+    if (saved.isEmpty) {
+      await _pickAddressOnMap();
+      return;
+    }
+
+    final choice = await showModalBottomSheet<Object>(
+      context: context,
+      backgroundColor: _card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => _buildAddressSheet(sheetContext, saved),
+    );
+
+    if (!mounted || choice == null) return;
+
+    if (choice is AddressModel) {
+      setState(() {
+        _deliveryAddressName = choice.address;
+        _deliveryAddress =
+            choice.details.trim().isNotEmpty ? choice.details : choice.address;
+        _deliveryLocation = LatLng(choice.latitude, choice.longitude);
+      });
+      return;
+    }
+
+    await _pickAddressOnMap();
+  }
+
+  Widget _buildAddressSheet(
+      BuildContext sheetContext, List<AddressModel> saved) {
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: _textSecondary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Text(
+                  tr('delivery_address'),
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: _textPrimary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: saved.length,
+              itemBuilder: (_, i) {
+                final a = saved[i];
+                return ListTile(
+                  leading: Icon(_addressTypeIcon(a.type), color: _accent),
+                  title: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          a.name.trim().isNotEmpty ? a.name : a.address,
+                          style: TextStyle(
+                              color: _textPrimary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (a.isDefault) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _accent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            'Par défaut',
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: _accent),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  subtitle: Text(
+                    a.address,
+                    style: TextStyle(color: _textSecondary, fontSize: 12),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onTap: () => Navigator.of(sheetContext).pop(a),
+                );
+              },
+            ),
+          ),
+          Divider(color: _textSecondary.withValues(alpha: 0.2), height: 1),
+          ListTile(
+            leading: Icon(Icons.map_outlined, color: _accent),
+            title: Text(
+              'Choisir un point sur la carte',
+              style: TextStyle(
+                  color: _textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14),
+            ),
+            onTap: () => Navigator.of(sheetContext).pop('map'),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  IconData _addressTypeIcon(String type) {
+    switch (type) {
+      case 'home':
+        return Icons.home_outlined;
+      case 'work':
+        return Icons.work_outline;
+      default:
+        return Icons.location_on_outlined;
+    }
+  }
+
+  Future<void> _pickAddressOnMap() async {
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(

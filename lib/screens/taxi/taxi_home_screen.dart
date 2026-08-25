@@ -12,7 +12,6 @@ import 'package:nomade_client/models/ride_choice.dart';
 import 'package:nomade_client/models/trip_details.dart';
 import 'package:nomade_client/providers/all_providers.dart';
 import 'package:nomade_client/services/location_service.dart';
-import 'package:nomade_client/data/mock_taxi_data.dart';
 import 'destination_picker_screen.dart';
 import 'ride_confirmation_screen.dart';
 import 'components/ride/ride_choice_card.dart';
@@ -59,7 +58,18 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
   final RestorableStringN _restorableDestinationName = RestorableStringN(null);
 
   // ── VÉHICULE SÉLECTIONNÉ ──────────────────────────────────
-  late RideChoice _selectedRide;
+  /// Véhicule sélectionné, mémorisé par ID et non par instance : le catalogue
+  /// est rechargé dès que l'admin change les tarifs dans `config/taxiPricing`,
+  /// et garder l'ancienne instance afficherait un prix périmé.
+  String? _selectedRideId;
+
+  RideChoice get _selectedRide {
+    final choices = ref.read(rideChoicesProvider);
+    return choices.firstWhere(
+      (r) => r.id == _selectedRideId,
+      orElse: () => choices.first,
+    );
+  }
 
   // ── DISTANCE / DURÉE ─────────────────────────────────────
   double _distanceKm = 0;
@@ -101,8 +111,6 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
   @override
   void initState() {
     super.initState();
-
-    _selectedRide = MockTaxiData.defaultRideChoice;
 
     _pulseController = AnimationController(
       duration: const Duration(seconds: 2),
@@ -370,6 +378,9 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
   Widget build(BuildContext context) {
     final isDark = ref.watch(themeNotifierProvider).isDarkMode;
     _c = isDark ? AppColors.dark : AppColors.light;
+    // Un changement de tarif côté admin doit reconstruire l'écran, y compris
+    // les branches qui n'affichent pas le sélecteur de véhicule.
+    ref.watch(rideChoicesProvider);
     final bool hasDestination = _destination != null;
 
     if (_gpsFailure != null) {
@@ -899,7 +910,7 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
   // Affiche les prix de base si pas de destination, prix calculés si destination
   // ─────────────────────────────────────────────────────────
   Widget _buildVehicleSelector() {
-    final vehicles = MockTaxiData.allRideChoices;
+    final vehicles = ref.watch(rideChoicesProvider);
     final bool hasDestination = _destination != null;
 
     return Padding(
@@ -915,7 +926,7 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
                 ride: v,
                 distance: hasDestination ? _distanceKm : 0.0,
                 isSelected: _selectedRide.id == v.id,
-                onTap: () => setState(() => _selectedRide = v),
+                onTap: () => setState(() => _selectedRideId = v.id),
                 c: _c,
               ),
             ),

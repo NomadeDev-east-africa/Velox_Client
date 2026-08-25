@@ -46,14 +46,16 @@ class _ItemsState extends State<Items> {
     if (!mounted) return;
 
     final menus      = results[0] as List<MenuItem>;
-    final categories = ['Tous', ...(results[1] as List<String>)];
+    // « Tous » affiché en dernier, mais reste l'onglet actif à l'ouverture :
+    // le client voit tout le menu en arrivant (cf. `initialIndex` du TabBar).
+    final categories = [...(results[1] as List<String>), 'Tous'];
     final promotions = results[2] as List<Promotion>;
 
     setState(() {
       _allMenus         = menus;
       _categories       = categories;
       _promotions       = promotions;
-      _selectedCategory = categories.isNotEmpty ? categories[0] : '';
+      _selectedCategory = categories.isNotEmpty ? categories.last : '';
       _isLoading        = false;
     });
   }
@@ -97,8 +99,16 @@ class _ItemsState extends State<Items> {
         // ── Onglets catégories ─────────────────────────────────────
         DefaultTabController(
           length: _categories.length,
+          // « Tous » est le dernier onglet mais celui sélectionné à l'ouverture.
+          // `_categories` est garanti non vide ici (garde plus haut).
+          initialIndex: _categories.length - 1,
           child: TabBar(
             isScrollable: true,
+            // La catégorie sélectionnée passe en vert accent (parité Android) :
+            // sans `labelColor`, Material retombait sur la couleur de texte
+            // normale, rendant la sélection peu visible.
+            labelColor: Theme.of(context).colorScheme.primary,
+            indicatorColor: Theme.of(context).colorScheme.primary,
             unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
             labelStyle: Theme.of(context).textTheme.titleLarge,
             onTap: (i) => setState(() => _selectedCategory = _categories[i]),
