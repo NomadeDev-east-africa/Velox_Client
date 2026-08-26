@@ -58,6 +58,9 @@ class _DeliveryAddressPickerScreenState extends ConsumerState<DeliveryAddressPic
       final position = ref.read(locationNotifierProvider).position ??
           const LatLng(11.5880, 43.1450);
 
+      // `getCurrentLocation()` prend plusieurs secondes : l'utilisateur a pu
+      // quitter l'écran entre-temps, et setState sur un widget détruit lève.
+      if (!mounted) return;
       setState(() {
         _customDeliveryPosition = position;
         _isInitialized = true;
@@ -77,6 +80,7 @@ class _DeliveryAddressPickerScreenState extends ConsumerState<DeliveryAddressPic
       debugPrint('✅ Position initialisée: $position');
 
       // Charger l'adresse pour cette position et la stocker localement
+      if (!mounted) return;
       setState(() => _isAddressLoading = true);
       ref.read(locationNotifierProvider.notifier)
           .getAddressForPosition(position)
@@ -94,6 +98,9 @@ class _DeliveryAddressPickerScreenState extends ConsumerState<DeliveryAddressPic
 
       // Fallback sur position par défaut
       const defaultPosition = LatLng(11.5880, 43.1450);
+      // C'est ce setState-ci qui plantait sur 1.0.16 : l'échec GPS survient
+      // après un délai d'attente, souvent une fois l'écran quitté.
+      if (!mounted) return;
       setState(() {
         _customDeliveryPosition = defaultPosition;
         _isInitialized = true;

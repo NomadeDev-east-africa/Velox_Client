@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -132,19 +133,84 @@ class NotificationService {
     debugPrint('✅ [NotificationService] Canal Android créé: orders');
   }
 
+  // ── Catégories iOS ────────────────────────────────────────────────────────
+  // Identifiants partagés avec le backend : ils doivent apparaître tels quels
+  // dans `aps.category` de la charge utile APNs pour que les notifications
+  // reçues hors premier plan soient elles aussi dépliables.
+  static const String categoryOrder = 'VELOX_ORDER';
+  static const String categoryRide  = 'VELOX_RIDE';
+  static const String categoryPromo = 'VELOX_PROMO';
+
+  /// Catégorie correspondant à un `type` de push.
+  static String _categoryFor(String? type) {
+    switch (type) {
+      case 'order_update':
+      case 'order_ready_client':
+        return categoryOrder;
+      case 'driver_accepted':
+      case 'driver_arriving':
+      case 'driver_arrived':
+      case 'ride_started':
+      case 'ride_completed':
+      case 'ride_cancelled':
+      case 'no_driver_available':
+      case 'ride_accepted':
+      case 'ride_update':
+        return categoryRide;
+      default:
+        return categoryPromo;
+    }
+  }
+
   /// ✅ Initialiser les notifications locales
   Future<void> _initLocalNotifications() async {
     const AndroidInitializationSettings androidSettings =
     AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    const DarwinInitializationSettings iosSettings =
+    // Non `const` : `DarwinNotificationAction.plain` n'est pas un constructeur
+    // constant.
+    final DarwinInitializationSettings iosSettings =
     DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
       requestSoundPermission: false,
+      // Catégories iOS : c'est leur enregistrement qui donne à une notification
+      // un contenu dépliable avec des actions. Sans catégorie, iOS n'affiche
+      // que la bannière tronquée et rien ne se passe à l'appui long.
+      //
+      // ⚠️ Ne vaut que pour les notifications AFFICHÉES PAR L'APP (premier
+      // plan). Quand l'app est en arrière-plan ou fermée, iOS rend directement
+      // la charge utile APNs : le backend doit y placer `aps.category` avec ces
+      // mêmes identifiants, sinon la notification reste sans actions.
+      notificationCategories: <DarwinNotificationCategory>[
+        DarwinNotificationCategory(
+          categoryOrder,
+          actions: <DarwinNotificationAction>[
+            DarwinNotificationAction.plain('view_order', 'Voir la commande'),
+          ],
+          options: <DarwinNotificationCategoryOption>{
+            DarwinNotificationCategoryOption.hiddenPreviewShowTitle,
+          },
+        ),
+        DarwinNotificationCategory(
+          categoryRide,
+          actions: <DarwinNotificationAction>[
+            DarwinNotificationAction.plain('view_ride', 'Suivre la course'),
+          ],
+          options: <DarwinNotificationCategoryOption>{
+            DarwinNotificationCategoryOption.hiddenPreviewShowTitle,
+          },
+        ),
+        DarwinNotificationCategory(
+          categoryPromo,
+          options: <DarwinNotificationCategoryOption>{
+            DarwinNotificationCategoryOption.hiddenPreviewShowTitle,
+          },
+        ),
+      ],
     );
 
-    const InitializationSettings settings = InitializationSettings(
+    final InitializationSettings settings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
     );
@@ -212,24 +278,44 @@ class NotificationService {
 
   /// ✅ Rafraîchir et sauvegarder le token
   Future<void> _refreshAndSaveToken() async {
-    // ✅ FIX iOS : le token APNs doit être disponible AVANT d'appeler getToken(),
-    // sinon FCM renvoie null (race condition fréquente au 1er lancement de l'app).
-    if (defaultTargetPlatform == TargetPlatform.iOS) {
-      final apnsToken = await _waitForApnsToken();
-      if (apnsToken == null) {
-        debugPrint(
-            '⚠️ [NotificationService] Token APNs indisponible après plusieurs tentatives — token FCM non récupéré');
-        return;
+    // `getToken()` et `getAPNSToken()` lèvent une PlatformException quand le
+    // canal natif répond en erreur — APNs pas encore enregistré, réseau absent
+    // au lancement. Non capturée, l'exception remontait jusqu'à
+    // `FlutterError.onError` et était comptée comme un plantage au démarrage.
+    // Ne pas obtenir de jeton n'est pas fatal : les notifications sont
+    // simplement indisponibles jusqu'à la prochaine tentative.
+    try {
+      // ✅ FIX iOS : le token APNs doit être disponible AVANT d'appeler getToken(),
+      // sinon FCM renvoie null (race condition fréquente au 1er lancement de l'app).
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        final apnsToken = await _waitForApnsToken();
+        if (apnsToken == null) {
+          debugPrint(
+              '⚠️ [NotificationService] Token APNs indisponible après plusieurs tentatives — token FCM non récupéré');
+          return;
+        }
       }
-    }
 
-    final token = await _messaging.getToken();
-    if (token != null) {
-      debugPrint(
-          '📱 [NotificationService] Token FCM récupéré (${token.length} caractères)');
-      await _saveTokenToFirestore(token);
-    } else {
-      debugPrint('⚠️ [NotificationService] Token FCM null');
+      final token = await _messaging.getToken();
+      if (token != null) {
+        debugPrint(
+            '📱 [NotificationService] Token FCM récupéré (${token.length} caractères)');
+        await _saveTokenToFirestore(token);
+      } else {
+        debugPrint('⚠️ [NotificationService] Token FCM null');
+      }
+    } catch (e, stack) {
+      debugPrint('⚠️ [NotificationService] Récupération du token FCM échouée: $e');
+      // Tracé en non-fatal : utile pour mesurer la fréquence sans polluer les
+      // plantages. `onTokenRefresh` reprendra la main dès que FCM en émet un.
+      if (!kDebugMode) {
+        FirebaseCrashlytics.instance.recordError(
+          e,
+          stack,
+          reason: 'getToken FCM',
+          fatal: false,
+        );
+      }
     }
   }
 
@@ -341,7 +427,10 @@ class NotificationService {
 
   /// ✅ Afficher une notification locale (pour foreground)
   Future<void> _showLocalNotification(RemoteMessage message) async {
-    const AndroidNotificationDetails androidDetails =
+    final String? type = message.data['type'] as String?;
+    final String body  = message.notification?.body ?? '';
+
+    final AndroidNotificationDetails androidDetails =
     AndroidNotificationDetails(
       'orders',
       'Commandes Nomade',
@@ -350,11 +439,26 @@ class NotificationService {
       priority: Priority.high,
       playSound: true,
       enableVibration: true,
+      // Style dépliable : sans lui, Android tronque à une ligne quel que soit
+      // le texte reçu.
+      styleInformation: BigTextStyleInformation(
+        body,
+        contentTitle: message.notification?.title,
+      ),
     );
 
-    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails();
+    final DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      // Rattache la notification à une catégorie enregistrée : c'est ce qui
+      // rend le contenu dépliable et fait apparaître les actions.
+      categoryIdentifier: _categoryFor(type),
+      // Regroupe les notifications d'une même famille dans le centre iOS.
+      threadIdentifier: _categoryFor(type),
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
 
-    const NotificationDetails details = NotificationDetails(
+    final NotificationDetails details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
@@ -368,7 +472,7 @@ class NotificationService {
     await _localNotifications.show(
       DateTime.now().millisecondsSinceEpoch % 100000,
       message.notification?.title ?? 'Nouvelle notification',
-      message.notification?.body ?? '',
+      body,
       details,
       payload: payload,
     );

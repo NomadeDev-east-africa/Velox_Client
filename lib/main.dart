@@ -96,12 +96,30 @@ void main() {
       FirebaseMessaging.onBackgroundMessage(
           _firebaseMessagingBackgroundHandler);
 
+      // Erreurs Flutter NON fatales : le framework les signale sans que l'app
+      // s'arrête — une image qui ne se charge pas, une tuile de carte
+      // indisponible, un overflow de layout. `recordFlutterFatalError` les
+      // remontait comme des plantages : les échecs réseau sur les images
+      // représentaient l'essentiel des « crashes » du tableau de bord et
+      // noyaient les vrais bugs.
+      //
+      // Les exceptions réellement non rattrapées restent enregistrées en fatal
+      // par le handler de `runZonedGuarded`, plus bas.
       FlutterError.onError = (FlutterErrorDetails details) {
         if (kDebugMode) {
           FlutterError.dumpErrorToConsole(details);
         } else {
-          FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+          FirebaseCrashlytics.instance.recordFlutterError(details);
         }
+      };
+
+      // Erreurs remontées par la plateforme hors zone Dart (callbacks natifs).
+      // Sans ce handler elles disparaissaient silencieusement.
+      PlatformDispatcher.instance.onError = (error, stack) {
+        if (!kDebugMode) {
+          FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+        }
+        return true;
       };
 
       // Ces services sont nécessaires avant runApp (Hive, cache, traductions)

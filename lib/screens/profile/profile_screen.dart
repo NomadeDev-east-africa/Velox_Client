@@ -11,6 +11,7 @@ import 'edit_profile_screen.dart';
 import 'adresses/add_address_screen.dart';
 import 'adresses/my_addresses_screen.dart';
 import '../history/order_history_screen.dart';
+import '../notifications/notifications_screen.dart';
 import '../food/favorites/favorite_restaurants_screen.dart';
 import 'support/support_screen.dart';
 
@@ -139,6 +140,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   title: tr('history_favorites'),
                   icon: Icons.history,
                   children: [
+                    _buildMenuItem(
+                      themeState: themeState,
+                      icon: Icons.notifications_none,
+                      title: 'Mes notifications',
+                      subtitle: 'Promotions et suivi',
+                      trailing: _notificationsTrailing(),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationsScreen(),
+                        ),
+                      ),
+                    ),
                     _buildMenuItem(
                       themeState: themeState,
                       icon: Icons.receipt_long,
@@ -377,6 +391,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Pastille de non-lus à droite de l'entrée « Mes notifications ».
+  /// Rien ne s'affiche à zéro : une pastille vide serait du bruit.
+  Widget _notificationsTrailing() {
+    final unread = ref.watch(unreadNotificationsCountProvider);
+    if (unread == 0) return const Icon(Icons.chevron_right, size: 20);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: _c.primary,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            unread > 99 ? '99+' : '$unread',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: _c.onPrimary,
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        const Icon(Icons.chevron_right, size: 20),
+      ],
     );
   }
 

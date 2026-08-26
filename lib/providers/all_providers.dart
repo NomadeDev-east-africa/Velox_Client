@@ -56,6 +56,11 @@ export 'favorites_notifier.dart';      // favoritesNotifierProvider
 // ── Préférences notifications ─────────────────────────────────────
 export 'notifications_notifier.dart';  // notificationsNotifierProvider
 
+// ── Historique notifications ──────────────────────────────────────
+export 'notification_history_provider.dart';
+// notificationHistoryProvider        ← liste temps réel
+// unreadNotificationsCountProvider   ← pastille non-lus
+
 // ── Phase 6 — GPS Riverpod ───────────────────────────────────────
 export 'location_notifier.dart';
 // locationNotifierProvider
