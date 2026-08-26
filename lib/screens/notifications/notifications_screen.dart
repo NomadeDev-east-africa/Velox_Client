@@ -9,6 +9,7 @@ import 'package:nomade_client/providers/all_providers.dart';
 import 'package:nomade_client/screens/food/details/details_screen.dart';
 import 'package:nomade_client/screens/food/food_tracking/order_tracking_screen.dart';
 import 'package:nomade_client/services/restaurant_service.dart';
+import 'package:nomade_client/services/ride_service.dart';
 import 'package:nomade_client/theme/app_colors.dart';
 
 /// Historique des notifications reçues.
@@ -251,8 +252,20 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           ),
         );
       case NotificationAction.ride:
-        // TrackingScreen lit la course active depuis `activeRideProvider` ;
-        // le rideId est transmis pour cohérence avec les autres appels.
+        // `TrackingScreen` suit la course ACTIVE (`activeRideProvider`) et
+        // ignore l'ID transmis : y envoyer depuis une notification de course
+        // terminée — la majorité de l'historique — affichait un écran sans
+        // rapport. On vérifie donc l'état réel avant de naviguer.
+        final ride = await RideService().getRideById(value);
+        if (!mounted) return;
+        if (ride == null) {
+          _snack('Course introuvable');
+          return;
+        }
+        if (!ride.isActive) {
+          _snack('Cette course est terminée');
+          return;
+        }
         await Navigator.of(context)
             .pushNamed('/ride-tracking', arguments: {'rideId': value});
       case NotificationAction.restaurant:
