@@ -1,0 +1,488 @@
+# Crashlytics - 
+# Application: dj.velox.client
+# Platform: apple
+# Version: 1.0.14 (1)
+# Issue: 8d7c4f9a531512429abe3d4344bc662e
+# Session: b2ea632976744b34b334dcf0fd2a39ac_DNE_0_v2
+# Date: Tue Aug 25 2026 22:10:11 GMT+0300 (heure normale d’Afrique de l’Est)
+
+Fatal Exception: FlutterError
+0   ???                            0x0 _HttpClient.getUrl (dart:_http)
+1   ???                            0x0 NetworkImage._loadAsync + 120 (_network_image_io.dart:120)
+2   ???                            0x0 NetworkImage.loadImage + 82 (_network_image_io.dart:82)
+3   ???                            0x0 ImageProvider.resolveStreamForKey.<fn> + 546 (image_provider.dart:546)
+4   ???                            0x0 ImageCache.putIfAbsent + 368 (image_cache.dart:368)
+5   ???                            0x0 ImageProvider.resolveStreamForKey + 543 (image_provider.dart:543)
+6   ???                            0x0 ImageProvider.resolve.<fn> + 383 (image_provider.dart:383)
+7   ???                            0x0 ImageProvider._createErrorHandlerAndKey.<fn> + 499 (image_provider.dart:499)
+8   ???                            0x0 SynchronousFuture.then + 44 (synchronous_future.dart:44)
+9   ???                            0x0 ImageProvider._createErrorHandlerAndKey + 496 (image_provider.dart:496)
+10  ???                            0x0 ImageProvider.resolve + 380 (image_provider.dart:380)
+11  ???                            0x0 _DecorationImagePainter.paint + 373 (decoration_image.dart:373)
+12  ???                            0x0 _BoxDecorationPainter._paintBackgroundImage + 560 (box_decoration.dart:560)
+13  ???                            0x0 _BoxDecorationPainter.paint + 577 (box_decoration.dart:577)
+14  ???                            0x0 RenderDecoratedBox.paint + 2482 (proxy_box.dart:2482)
+15  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+16  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+17  ???                            0x0 RenderProxyBoxMixin.paint + 143 (proxy_box.dart:143)
+18  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+19  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+20  ???                            0x0 RenderBoxContainerDefaultsMixin.defaultPaint + 3368 (box.dart:3368)
+21  ???                            0x0 RenderStack.paintStack + 713 (stack.dart:713)
+22  ???                            0x0 RenderStack.paint + 729 (stack.dart:729)
+23  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+24  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+25  ???                            0x0 RenderShiftedBox.paint + 98 (shifted_box.dart:98)
+26  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+27  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+28  ???                            0x0 RenderProxyBoxMixin.paint + 143 (proxy_box.dart:143)
+29  ???                            0x0 RenderDecoratedBox.paint + 2512 (proxy_box.dart:2512)
+30  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+31  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+32  ???                            0x0 RenderBoxContainerDefaultsMixin.defaultPaint + 3368 (box.dart:3368)
+33  ???                            0x0 RenderStack.paintStack + 713 (stack.dart:713)
+34  ???                            0x0 RenderStack.paint + 729 (stack.dart:729)
+35  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+36  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+37  ???                            0x0 RenderBoxContainerDefaultsMixin.defaultPaint + 3368 (box.dart:3368)
+38  ???                            0x0 RenderFlex.paint + 1402 (flex.dart:1402)
+39  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+40  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+41  ???                            0x0 RenderShiftedBox.paint + 98 (shifted_box.dart:98)
+42  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+43  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+44  ???                            0x0 RenderShiftedBox.paint + 98 (shifted_box.dart:98)
+45  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+46  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+47  ???                            0x0 RenderProxyBoxMixin.paint + 143 (proxy_box.dart:143)
+48  ???                            0x0 RenderDecoratedBox.paint + 2512 (proxy_box.dart:2512)
+49  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+50  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+51  ???                            0x0 RenderProxyBoxMixin.paint + 143 (proxy_box.dart:143)
+52  ???                            0x0 RenderOpacity.paint + 952 (proxy_box.dart:952)
+53  ???                            0x0 PaintingContext.pushLayer + 522 (object.dart:522)
+54  ???                            0x0 PaintingContext.pushOpacity + 846 (object.dart:846)
+55  ???                            0x0 _RenderFlexibleSpaceHeaderOpacity.paint + 491 (flexible_space_bar.dart:491)
+56  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+57  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+58  ???                            0x0 RenderBoxContainerDefaultsMixin.defaultPaint + 3368 (box.dart:3368)
+59  ???                            0x0 RenderStack.paintStack + 713 (stack.dart:713)
+60  ???                            0x0 PaintingContext.pushLayer + 522 (object.dart:522)
+61  ???                            0x0 PaintingContext.pushClipRect + 589 (object.dart:589)
+62  ???                            0x0 RenderStack.paint + 719 (stack.dart:719)
+63  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+64  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+65  ???                            0x0 RenderProxyBoxMixin.paint + 143 (proxy_box.dart:143)
+66  ???                            0x0 PaintingContext.pushLayer + 522 (object.dart:522)
+67  ???                            0x0 PaintingContext.pushClipRect + 589 (object.dart:589)
+68  ???                            0x0 RenderClipRect.paint + 1644 (proxy_box.dart:1644)
+69  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+70  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+71  ???                            0x0 _RenderLayoutBuilder.paint + 470 (layout_builder.dart:470)
+72  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+73  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+74  ???                            0x0 RenderProxyBoxMixin.paint + 143 (proxy_box.dart:143)
+75  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+76  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+77  ???                            0x0 RenderProxyBoxMixin.paint + 143 (proxy_box.dart:143)
+78  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+79  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+80  ???                            0x0 RenderBoxContainerDefaultsMixin.defaultPaint + 3368 (box.dart:3368)
+81  ???                            0x0 RenderStack.paintStack + 713 (stack.dart:713)
+82  ???                            0x0 RenderStack.paint + 729 (stack.dart:729)
+83  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+84  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+85  ???                            0x0 RenderProxyBoxMixin.paint + 143 (proxy_box.dart:143)
+86  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+87  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+88  ???                            0x0 RenderProxyBoxMixin.paint + 143 (proxy_box.dart:143)
+89  ???                            0x0 _RenderInkFeatures.paint + 634 (material.dart:634)
+90  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+91  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+92  ???                            0x0 RenderProxyBoxMixin.paint + 143 (proxy_box.dart:143)
+93  ???                            0x0 RenderPhysicalShape.paint.<fn> + 2357 (proxy_box.dart:2357)
+94  ???                            0x0 PaintingContext.pushClipRRect + 626 (object.dart:626)
+95  ???                            0x0 RenderPhysicalModel.paint + 2239 (proxy_box.dart:2239)
+96  ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+97  ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+98  ???                            0x0 RenderProxyBoxMixin.paint + 143 (proxy_box.dart:143)
+99  ???                            0x0 PaintingContext.pushLayer + 522 (object.dart:522)
+100 ???                            0x0 RenderAnnotatedRegion.paint + 4811 (proxy_box.dart:4811)
+101 ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+102 ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+103 ???                            0x0 RenderProxyBoxMixin.paint + 143 (proxy_box.dart:143)
+104 ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+105 ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+106 ???                            0x0 RenderSliverPersistentHeader.paint + 329 (sliver_persistent_header.dart:329)
+107 ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+108 ???                            0x0 PaintingContext.paintChild + 265 (object.dart:265)
+109 ???                            0x0 RenderViewportBase._paintContents + 999 (viewport.dart:999)
+110 ???                            0x0 PaintingContext.pushLayer + 522 (object.dart:522)
+111 ???                            0x0 PaintingContext.pushClipRect + 589 (object.dart:589)
+112 ???                            0x0 RenderViewportBase.paint + 974 (viewport.dart:974)
+113 ???                            0x0 RenderObject._paintWithContext + 3568 (object.dart:3568)
+114 ???                            0x0 PaintingContext._repaintCompositedChild + 180 (object.dart:180)
+115 ???                            0x0 PaintingContext.repaintCompositedChild + 125 (object.dart:125)
+116 ???                            0x0 PipelineOwner.flushPaint + 1325 (object.dart:1325)
+117 ???                            0x0 PipelineOwner.flushPaint + 1335 (object.dart:1335)
+118 ???                            0x0 RendererBinding.drawFrame + 645 (binding.dart:645)
+119 ???                            0x0 WidgetsBinding.drawFrame + 1573 (binding.dart:1573)
+120 ???                            0x0 RendererBinding._handlePersistentFrameCallback + 509 (binding.dart:509)
+121 ???                            0x0 SchedulerBinding._invokeFrameCallback + 1430 (binding.dart:1430)
+122 ???                            0x0 SchedulerBinding.handleDrawFrame + 1345 (binding.dart:1345)
+123 ???                            0x0 SchedulerBinding._handleDrawFrame + 1198 (binding.dart:1198)
+
+Crashed: com.apple.main-thread
+0  Runner                         0x2414bc FIRCLSProcessRecordAllThreads + 392 (FIRCLSProcess.c:392)
+1  Runner                         0x2418c0 FIRCLSProcessRecordAllThreads + 423 (FIRCLSProcess.c:423)
+2  Runner                         0x250900 FIRCLSHandler + 39 (FIRCLSHandler.m:39)
+3  Runner                         0x24fe4c FIRCLSExceptionRecordOnDemand + 360 (FIRCLSException.mm:360)
+4  Runner                         0x24f87c FIRCLSExceptionRecordOnDemandModel + 99 (FIRCLSException.mm:99)
+5  Runner                         0x25823c -[FIRCLSOnDemandModel recordOnDemandExceptionWithModel:] + 182 (FIRCLSOnDemandModel.m:182)
+6  Runner                         0x257ce4 -[FIRCLSOnDemandModel recordOnDemandExceptionIfQuota:withDataCollectionEnabled:usingExistingReportManager:] + 104 (FIRCLSOnDemandModel.m:104)
+7  Runner                         0x24df7c __47-[FIRCrashlytics recordOnDemandExceptionModel:]_block_invoke + 456 (FIRCrashlytics.m:456)
+8  Runner                         0x24e230 __46-[FIRCrashlytics waitForContextInit:callback:]_block_invoke + 500 (FIRCrashlytics.m:500)
+9  Runner                         0xf08bc __56-[FBLPromise chainOnQueue:chainedFulfill:chainedReject:]_block_invoke.33 + 273 (FBLPromise.m:273)
+10 libdispatch.dylib              0x19a8 _dispatch_call_block_and_release + 32
+11 libdispatch.dylib              0x1b1e4 _dispatch_client_callout + 16
+12 libdispatch.dylib              0x38e58 _dispatch_main_queue_drain.cold.6 + 904
+13 libdispatch.dylib              0x10964 _dispatch_main_queue_drain + 176
+14 libdispatch.dylib              0x108a4 _dispatch_main_queue_callback_4CF + 44
+15 CoreFoundation                 0xa2030 __CFRUNLOOP_IS_SERVICING_THE_MAIN_DISPATCH_QUEUE__ + 16
+16 CoreFoundation                 0x2f604 __CFRunLoopRun + 1944
+17 CoreFoundation                 0x2e54c _CFRunLoopRunSpecificWithOptions + 532
+18 GraphicsServices               0x1498 GSEventRunModal + 120
+19 UIKitCore                      0x121244 -[UIApplication _run] + 796
+20 UIKitCore                      0x8c158 UIApplicationMain + 332
+21 UIKitCore                      0x298618 -[UIView(UIConstraintBasedLayout) _setContentHuggingPriorities:] + 528
+22 Runner                         0x4674 main + 4375660148 (AppDelegate.swift:4375660148)
+23 ???                            0x187771c1c (Missing)
+
+com.google.firebase.firestore.rpc
+0  libsystem_kernel.dylib         0x14d84 poll + 8
+1  Runner                         0x5cb734 pollset_work(grpc_pollset*, grpc_pollset_worker**, grpc_core::Timestamp) + 62492
+2  Runner                         0x5ce75c pollset_work(grpc_pollset*, grpc_pollset_worker**, grpc_core::Timestamp) + 74820
+3  Runner                         0x59e560 cq_next(grpc_completion_queue*, gpr_timespec, void*) + 50164
+4  Runner                         0x4eb2e8 grpc::CompletionQueue::AsyncNextInternal(void**, bool*, gpr_timespec) + 77428
+5  Runner                         0x362e94 firebase::firestore::remote::Datastore::PollGrpcQueue() + 2509368
+6  Runner                         0x496a08 firebase::firestore::util::Task::ExecuteAndRelease() + 3769772
+7  libdispatch.dylib              0x1b1e4 _dispatch_client_callout + 16
+8  libdispatch.dylib              0x9fb0 _dispatch_lane_serial_drain + 740
+9  libdispatch.dylib              0xaaac _dispatch_lane_invoke + 392
+10 libdispatch.dylib              0x14dac _dispatch_root_queue_drain_deferred_wlh + 284
+11 libdispatch.dylib              0x146ac _dispatch_workloop_worker_thread + 720
+12 libsystem_pthread.dylib        0x13b0 _pthread_wqthread + 292
+13 libsystem_pthread.dylib        0x8c0 start_wqthread + 8
+
+com.apple.uikit.eventfetch-thread
+0  libsystem_kernel.dylib         0xcd4 mach_msg2_trap + 8
+1  libsystem_kernel.dylib         0x430c mach_msg2_internal + 76
+2  libsystem_kernel.dylib         0x422c mach_msg_overwrite + 424
+3  libsystem_kernel.dylib         0x4078 mach_msg + 24
+4  CoreFoundation                 0x65344 __CFRunLoopServiceMachPort + 160
+5  CoreFoundation                 0x2f310 __CFRunLoopRun + 1188
+6  CoreFoundation                 0x2e54c _CFRunLoopRunSpecificWithOptions + 532
+7  Foundation                     0xacf0 -[NSRunLoop(NSRunLoop) runMode:beforeDate:] + 212
+8  Foundation                     0xabd8 -[NSRunLoop(NSRunLoop) runUntilDate:] + 64
+9  UIKitCore                      0xe6a7c -[UIEventFetcher threadMain] + 420
+10 Foundation                     0x8e824 __NSThread__start__ + 732
+11 libsystem_pthread.dylib        0x4438 _pthread_start + 136
+12 libsystem_pthread.dylib        0x8cc thread_start + 8
+
+io.flutter.1.raster
+0  libsystem_kernel.dylib         0xcd4 mach_msg2_trap + 8
+1  libsystem_kernel.dylib         0x430c mach_msg2_internal + 76
+2  libsystem_kernel.dylib         0x422c mach_msg_overwrite + 424
+3  libsystem_kernel.dylib         0x4078 mach_msg + 24
+4  CoreFoundation                 0x65344 __CFRunLoopServiceMachPort + 160
+5  CoreFoundation                 0x2f310 __CFRunLoopRun + 1188
+6  CoreFoundation                 0x2e54c _CFRunLoopRunSpecificWithOptions + 532
+7  Flutter                        0xa7f60 fml::MessageLoopDarwin::Run() + 52 (message_loop_darwin.mm:52)
+8  Flutter                        0xa75b8 std::__fl::__function::__func<fml::Thread::Thread(std::__fl::function<void (fml::Thread::ThreadConfig const&)> const&, fml::Thread::ThreadConfig const&)::$_0, std::__fl::allocator<fml::Thread::Thread(std::__fl::function<void (fml::Thread::ThreadConfig const&)> const&, fml::Thread::ThreadConfig const&)::$_0>, void ()>::operator()() + 94 (message_loop_impl.cc:94)
+9  Flutter                        0xa72c4 fml::ThreadHandle::ThreadHandle(std::__fl::function<void ()>&&)::$_0::__invoke(void*) + 403 (function.h:403)
+10 libsystem_pthread.dylib        0x4438 _pthread_start + 136
+11 libsystem_pthread.dylib        0x8cc thread_start + 8
+
+io.flutter.1.io
+0  libsystem_kernel.dylib         0xcd4 mach_msg2_trap + 8
+1  libsystem_kernel.dylib         0x430c mach_msg2_internal + 76
+2  libsystem_kernel.dylib         0x422c mach_msg_overwrite + 424
+3  libsystem_kernel.dylib         0x4078 mach_msg + 24
+4  CoreFoundation                 0x65344 __CFRunLoopServiceMachPort + 160
+5  CoreFoundation                 0x2f310 __CFRunLoopRun + 1188
+6  CoreFoundation                 0x2e54c _CFRunLoopRunSpecificWithOptions + 532
+7  Flutter                        0xa7f60 fml::MessageLoopDarwin::Run() + 52 (message_loop_darwin.mm:52)
+8  Flutter                        0xa75b8 std::__fl::__function::__func<fml::Thread::Thread(std::__fl::function<void (fml::Thread::ThreadConfig const&)> const&, fml::Thread::ThreadConfig const&)::$_0, std::__fl::allocator<fml::Thread::Thread(std::__fl::function<void (fml::Thread::ThreadConfig const&)> const&, fml::Thread::ThreadConfig const&)::$_0>, void ()>::operator()() + 94 (message_loop_impl.cc:94)
+9  Flutter                        0xa72c4 fml::ThreadHandle::ThreadHandle(std::__fl::function<void ()>&&)::$_0::__invoke(void*) + 403 (function.h:403)
+10 libsystem_pthread.dylib        0x4438 _pthread_start + 136
+11 libsystem_pthread.dylib        0x8cc thread_start + 8
+
+io.worker.1
+0  libsystem_kernel.dylib         0x65e8 __psynch_cvwait + 8
+1  libsystem_pthread.dylib        0x2b48 _pthread_cond_wait + 980
+2  Flutter                        0xa105c void* std::__fl::__thread_proxy[abi:nn210000]<std::__fl::tuple<std::__fl::unique_ptr<std::__fl::__thread_struct, std::__fl::default_delete<std::__fl::__thread_struct>>, fml::ConcurrentMessageLoop::ConcurrentMessageLoop(unsigned long)::$_0>>(void*) + 31 (condition_variable.cpp:31)
+3  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+4  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+io.worker.2
+0  libsystem_kernel.dylib         0x65e8 __psynch_cvwait + 8
+1  libsystem_pthread.dylib        0x2b48 _pthread_cond_wait + 980
+2  Flutter                        0xa105c void* std::__fl::__thread_proxy[abi:nn210000]<std::__fl::tuple<std::__fl::unique_ptr<std::__fl::__thread_struct, std::__fl::default_delete<std::__fl::__thread_struct>>, fml::ConcurrentMessageLoop::ConcurrentMessageLoop(unsigned long)::$_0>>(void*) + 31 (condition_variable.cpp:31)
+3  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+4  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+io.worker.3
+0  libsystem_kernel.dylib         0x65e8 __psynch_cvwait + 8
+1  libsystem_pthread.dylib        0x2b48 _pthread_cond_wait + 980
+2  Flutter                        0xa105c void* std::__fl::__thread_proxy[abi:nn210000]<std::__fl::tuple<std::__fl::unique_ptr<std::__fl::__thread_struct, std::__fl::default_delete<std::__fl::__thread_struct>>, fml::ConcurrentMessageLoop::ConcurrentMessageLoop(unsigned long)::$_0>>(void*) + 31 (condition_variable.cpp:31)
+3  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+4  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+dart:io EventHandler
+0  libsystem_kernel.dylib         0x78dc kevent + 8
+1  Flutter                        0x4c43ec dart::bin::EventHandlerImplementation::EventHandlerEntry(unsigned long) + 459 (eventhandler_macos.cc:459)
+2  Flutter                        0x4faef4 dart::bin::ThreadStart(void*) + 65 (thread_macos.cc:65)
+3  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+4  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+com.google.firebase.crashlytics.MachExceptionServer
+0  libsystem_kernel.dylib         0xcd4 mach_msg2_trap + 8
+1  libsystem_kernel.dylib         0x430c mach_msg2_internal + 76
+2  libsystem_kernel.dylib         0x422c mach_msg_overwrite + 424
+3  libsystem_kernel.dylib         0x4078 mach_msg + 24
+4  Runner                         0x250f28 FIRCLSMachExceptionServer + 198 (FIRCLSMachException.c:198)
+5  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+6  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+Thread
+0  libsystem_kernel.dylib         0x65e8 __psynch_cvwait + 8
+1  libsystem_pthread.dylib        0x2b48 _pthread_cond_wait + 980
+2  Runner                         0x72ac90 gpr_cv_wait + 506820
+3  Runner                         0x5d83f0 grpc_core::Executor::ThreadMain(void*) + 114904
+4  Runner                         0x73c3f0 grpc_core::(anonymous namespace)::ThreadInternalsPosix::ThreadInternalsPosix(char const*, void (*)(void*), void*, bool*, grpc_core::Thread::Options const&)::'lambda'(void*)::__invoke(void*) + 15336
+5  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+6  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+Thread
+0  libsystem_kernel.dylib         0x65e8 __psynch_cvwait + 8
+1  libsystem_pthread.dylib        0x2b48 _pthread_cond_wait + 980
+2  Runner                         0x72ac90 gpr_cv_wait + 506820
+3  Runner                         0x5d83f0 grpc_core::Executor::ThreadMain(void*) + 114904
+4  Runner                         0x73c3f0 grpc_core::(anonymous namespace)::ThreadInternalsPosix::ThreadInternalsPosix(char const*, void (*)(void*), void*, bool*, grpc_core::Thread::Options const&)::'lambda'(void*)::__invoke(void*) + 15336
+5  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+6  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+Thread
+0  libsystem_kernel.dylib         0x65e8 __psynch_cvwait + 8
+1  libsystem_pthread.dylib        0x2b48 _pthread_cond_wait + 980
+2  Runner                         0x72ac80 gpr_cv_wait + 506804
+3  Runner                         0x742a70 timer_thread(void*) + 41576
+4  Runner                         0x73c3f0 grpc_core::(anonymous namespace)::ThreadInternalsPosix::ThreadInternalsPosix(char const*, void (*)(void*), void*, bool*, grpc_core::Thread::Options const&)::'lambda'(void*)::__invoke(void*) + 15336
+5  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+6  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+com.apple.NSURLConnectionLoader
+0  libsystem_kernel.dylib         0xcd4 mach_msg2_trap + 8
+1  libsystem_kernel.dylib         0x430c mach_msg2_internal + 76
+2  libsystem_kernel.dylib         0x422c mach_msg_overwrite + 424
+3  libsystem_kernel.dylib         0x4078 mach_msg + 24
+4  CoreFoundation                 0x65344 __CFRunLoopServiceMachPort + 160
+5  CoreFoundation                 0x2f310 __CFRunLoopRun + 1188
+6  CoreFoundation                 0x2e54c _CFRunLoopRunSpecificWithOptions + 532
+7  CFNetwork                      0x91b54 +[__CFN_CoreSchedulingSetRunnable _run:] + 416
+8  Foundation                     0x8e824 __NSThread__start__ + 732
+9  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+10 libsystem_pthread.dylib        0x8cc thread_start + 8
+
+Thread
+0  libsystem_kernel.dylib         0x65e8 __psynch_cvwait + 8
+1  libsystem_pthread.dylib        0x2b48 _pthread_cond_wait + 980
+2  Runner                         0x72ac80 gpr_cv_wait + 506804
+3  Runner                         0x7648cc grpc_event_engine::experimental::WorkStealingThreadPool::WorkSignal::WaitWithTimeout(grpc_core::Duration) + 113708
+4  Runner                         0x764624 grpc_event_engine::experimental::WorkStealingThreadPool::ThreadState::Step() + 113028
+5  Runner                         0x7642b8 grpc_event_engine::experimental::WorkStealingThreadPool::ThreadState::ThreadBody() + 112152
+6  Runner                         0x764acc grpc_event_engine::experimental::WorkStealingThreadPool::WorkStealingThreadPoolImpl::StartThread()::$_0::__invoke(void*) + 114220
+7  Runner                         0x73c3f0 grpc_core::(anonymous namespace)::ThreadInternalsPosix::ThreadInternalsPosix(char const*, void (*)(void*), void*, bool*, grpc_core::Thread::Options const&)::'lambda'(void*)::__invoke(void*) + 15336
+8  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+9  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+Thread
+0  libsystem_kernel.dylib         0x65e8 __psynch_cvwait + 8
+1  libsystem_pthread.dylib        0x2b48 _pthread_cond_wait + 980
+2  Runner                         0x72ac80 gpr_cv_wait + 506804
+3  Runner                         0x7648cc grpc_event_engine::experimental::WorkStealingThreadPool::WorkSignal::WaitWithTimeout(grpc_core::Duration) + 113708
+4  Runner                         0x764624 grpc_event_engine::experimental::WorkStealingThreadPool::ThreadState::Step() + 113028
+5  Runner                         0x7642b8 grpc_event_engine::experimental::WorkStealingThreadPool::ThreadState::ThreadBody() + 112152
+6  Runner                         0x764acc grpc_event_engine::experimental::WorkStealingThreadPool::WorkStealingThreadPoolImpl::StartThread()::$_0::__invoke(void*) + 114220
+7  Runner                         0x73c3f0 grpc_core::(anonymous namespace)::ThreadInternalsPosix::ThreadInternalsPosix(char const*, void (*)(void*), void*, bool*, grpc_core::Thread::Options const&)::'lambda'(void*)::__invoke(void*) + 15336
+8  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+9  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+Thread
+0  libsystem_kernel.dylib         0x65e8 __psynch_cvwait + 8
+1  libsystem_pthread.dylib        0x2b48 _pthread_cond_wait + 980
+2  Runner                         0x72ac80 gpr_cv_wait + 506804
+3  Runner                         0x7648cc grpc_event_engine::experimental::WorkStealingThreadPool::WorkSignal::WaitWithTimeout(grpc_core::Duration) + 113708
+4  Runner                         0x764624 grpc_event_engine::experimental::WorkStealingThreadPool::ThreadState::Step() + 113028
+5  Runner                         0x7642b8 grpc_event_engine::experimental::WorkStealingThreadPool::ThreadState::ThreadBody() + 112152
+6  Runner                         0x764acc grpc_event_engine::experimental::WorkStealingThreadPool::WorkStealingThreadPoolImpl::StartThread()::$_0::__invoke(void*) + 114220
+7  Runner                         0x73c3f0 grpc_core::(anonymous namespace)::ThreadInternalsPosix::ThreadInternalsPosix(char const*, void (*)(void*), void*, bool*, grpc_core::Thread::Options const&)::'lambda'(void*)::__invoke(void*) + 15336
+8  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+9  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+Thread
+0  libsystem_kernel.dylib         0x65e8 __psynch_cvwait + 8
+1  libsystem_pthread.dylib        0x2b48 _pthread_cond_wait + 980
+2  Runner                         0x72ac80 gpr_cv_wait + 506804
+3  Runner                         0x7648cc grpc_event_engine::experimental::WorkStealingThreadPool::WorkSignal::WaitWithTimeout(grpc_core::Duration) + 113708
+4  Runner                         0x764624 grpc_event_engine::experimental::WorkStealingThreadPool::ThreadState::Step() + 113028
+5  Runner                         0x7642b8 grpc_event_engine::experimental::WorkStealingThreadPool::ThreadState::ThreadBody() + 112152
+6  Runner                         0x764acc grpc_event_engine::experimental::WorkStealingThreadPool::WorkStealingThreadPoolImpl::StartThread()::$_0::__invoke(void*) + 114220
+7  Runner                         0x73c3f0 grpc_core::(anonymous namespace)::ThreadInternalsPosix::ThreadInternalsPosix(char const*, void (*)(void*), void*, bool*, grpc_core::Thread::Options const&)::'lambda'(void*)::__invoke(void*) + 15336
+8  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+9  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+Thread
+0  libsystem_kernel.dylib         0x65e8 __psynch_cvwait + 8
+1  libsystem_pthread.dylib        0x2b48 _pthread_cond_wait + 980
+2  Runner                         0x72ac80 gpr_cv_wait + 506804
+3  Runner                         0x7416f8 grpc_event_engine::experimental::TimerManager::WaitUntil(grpc_core::Timestamp) + 36592
+4  Runner                         0x742280 void absl::lts_20240722::internal_any_invocable::RemoteInvoker<false, void, grpc_event_engine::experimental::TimerManager::MainLoop()::$_0&>(absl::lts_20240722::internal_any_invocable::TypeErasedState*) + 39544
+5  Runner                         0x50b740 grpc_event_engine::experimental::SelfDeletingClosure::Run() + 209612
+6  Runner                         0x764598 grpc_event_engine::experimental::WorkStealingThreadPool::ThreadState::Step() + 112888
+7  Runner                         0x7642b8 grpc_event_engine::experimental::WorkStealingThreadPool::ThreadState::ThreadBody() + 112152
+8  Runner                         0x764acc grpc_event_engine::experimental::WorkStealingThreadPool::WorkStealingThreadPoolImpl::StartThread()::$_0::__invoke(void*) + 114220
+9  Runner                         0x73c3f0 grpc_core::(anonymous namespace)::ThreadInternalsPosix::ThreadInternalsPosix(char const*, void (*)(void*), void*, bool*, grpc_core::Thread::Options const&)::'lambda'(void*)::__invoke(void*) + 15336
+10 libsystem_pthread.dylib        0x4438 _pthread_start + 136
+11 libsystem_pthread.dylib        0x8cc thread_start + 8
+
+Thread
+0  libsystem_kernel.dylib         0x65e8 __psynch_cvwait + 8
+1  libsystem_pthread.dylib        0x2b48 _pthread_cond_wait + 980
+2  Runner                         0x72ac80 gpr_cv_wait + 506804
+3  Runner                         0x7648cc grpc_event_engine::experimental::WorkStealingThreadPool::WorkSignal::WaitWithTimeout(grpc_core::Duration) + 113708
+4  Runner                         0x764624 grpc_event_engine::experimental::WorkStealingThreadPool::ThreadState::Step() + 113028
+5  Runner                         0x7642b8 grpc_event_engine::experimental::WorkStealingThreadPool::ThreadState::ThreadBody() + 112152
+6  Runner                         0x764acc grpc_event_engine::experimental::WorkStealingThreadPool::WorkStealingThreadPoolImpl::StartThread()::$_0::__invoke(void*) + 114220
+7  Runner                         0x73c3f0 grpc_core::(anonymous namespace)::ThreadInternalsPosix::ThreadInternalsPosix(char const*, void (*)(void*), void*, bool*, grpc_core::Thread::Options const&)::'lambda'(void*)::__invoke(void*) + 15336
+8  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+9  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+Thread
+0  libsystem_kernel.dylib         0x65e8 __psynch_cvwait + 8
+1  libsystem_pthread.dylib        0x2b48 _pthread_cond_wait + 980
+2  Runner                         0x72ac80 gpr_cv_wait + 506804
+3  Runner                         0x763c74 grpc_core::Notification::WaitForNotificationWithTimeout(absl::lts_20240722::Duration) + 110548
+4  Runner                         0x763b58 grpc_event_engine::experimental::WorkStealingThreadPool::WorkStealingThreadPoolImpl::Lifeguard::LifeguardMain() + 110264
+5  Runner                         0x73c3f0 grpc_core::(anonymous namespace)::ThreadInternalsPosix::ThreadInternalsPosix(char const*, void (*)(void*), void*, bool*, grpc_core::Thread::Options const&)::'lambda'(void*)::__invoke(void*) + 15336
+6  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+7  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+com.apple.CFStream.LegacyThread
+0  libsystem_kernel.dylib         0xcd4 mach_msg2_trap + 8
+1  libsystem_kernel.dylib         0x430c mach_msg2_internal + 76
+2  libsystem_kernel.dylib         0x422c mach_msg_overwrite + 424
+3  libsystem_kernel.dylib         0x4078 mach_msg + 24
+4  CoreFoundation                 0x65344 __CFRunLoopServiceMachPort + 160
+5  CoreFoundation                 0x2f310 __CFRunLoopRun + 1188
+6  CoreFoundation                 0x2e54c _CFRunLoopRunSpecificWithOptions + 532
+7  CoreFoundation                 0xf7848 _legacyStreamRunLoop_workThread + 300
+8  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+9  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+com.apple.CFSocket.private
+0  libsystem_kernel.dylib         0x8370 select$DARWIN_EXTSN + 8
+1  libsystem_kernel.dylib         0x8370 __select + 8
+2  CoreFoundation                 0x11614c __CFSocketManager + 708
+3  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+4  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+Thread
+0  libsystem_kernel.dylib         0x65e8 __psynch_cvwait + 8
+1  libsystem_pthread.dylib        0x2b48 _pthread_cond_wait + 980
+2  Runner                         0x72ac90 gpr_cv_wait + 506820
+3  Runner                         0x742a70 timer_thread(void*) + 41576
+4  Runner                         0x73c3f0 grpc_core::(anonymous namespace)::ThreadInternalsPosix::ThreadInternalsPosix(char const*, void (*)(void*), void*, bool*, grpc_core::Thread::Options const&)::'lambda'(void*)::__invoke(void*) + 15336
+5  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+6  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+caulk::deferred_logger
+0  libsystem_kernel.dylib         0xc50 semaphore_wait_trap + 8
+1  caulk                          0x3c6c caulk::semaphore::timed_wait(double) + 224
+2  caulk                          0x3cb8 caulk::concurrent::details::worker_thread::run() + 32
+3  caulk                          0x7f54 void* caulk::thread_proxy<std::__1::tuple<caulk::thread::attributes, void (caulk::concurrent::details::worker_thread::*)(), std::__1::tuple<caulk::concurrent::details::worker_thread*>>>(void*) + 96
+4  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+5  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+caulk.messenger.shared:high
+0  libsystem_kernel.dylib         0xc50 semaphore_wait_trap + 8
+1  caulk                          0x3c6c caulk::semaphore::timed_wait(double) + 224
+2  caulk                          0x3cb8 caulk::concurrent::details::worker_thread::run() + 32
+3  caulk                          0x7f54 void* caulk::thread_proxy<std::__1::tuple<caulk::thread::attributes, void (caulk::concurrent::details::worker_thread::*)(), std::__1::tuple<caulk::concurrent::details::worker_thread*>>>(void*) + 96
+4  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+5  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+Thread
+0  libsystem_pthread.dylib        0x8b8 start_wqthread + 8218085558
+
+Thread
+0  libsystem_kernel.dylib         0xa80 __workq_kernreturn + 8
+1  libsystem_pthread.dylib        0x13fc _pthread_wqthread + 368
+2  libsystem_pthread.dylib        0x8c0 start_wqthread + 8
+
+Thread
+0  libsystem_kernel.dylib         0xa80 __workq_kernreturn + 8
+1  libsystem_pthread.dylib        0x13fc _pthread_wqthread + 368
+2  libsystem_pthread.dylib        0x8c0 start_wqthread + 8
+
+com.google.firebase.crashlytics.on.demand
+0  libsystem_kernel.dylib         0x6808 __semwait_signal + 8
+1  libsystem_c.dylib              0xc82c nanosleep + 220
+2  libsystem_c.dylib              0xc954 sleep + 52
+3  Runner                         0x257f80 __107-[FIRCLSOnDemandModel recordOnDemandExceptionIfQuota:withDataCollectionEnabled:usingExistingReportManager:]_block_invoke + 137 (FIRCLSOnDemandModel.m:137)
+4  Foundation                     0x24bc4 <deduplicated_symbol> + 24
+5  Foundation                     0x247d0 -[NSBlockOperation main] + 88
+6  Foundation                     0x248f8 __NSOPERATION_IS_INVOKING_MAIN__ + 16
+7  Foundation                     0x24494 -[NSOperation start] + 640
+8  Foundation                     0x24770 __NSOPERATIONQUEUE_IS_STARTING_AN_OPERATION__ + 16
+9  Foundation                     0x23928 __NSOQSchedule_f + 164
+10 libdispatch.dylib              0x10e84 _dispatch_block_async_invoke2 + 148
+11 libdispatch.dylib              0x1b1e4 _dispatch_client_callout + 16
+12 libdispatch.dylib              0x9fb0 _dispatch_lane_serial_drain + 740
+13 libdispatch.dylib              0xaaac _dispatch_lane_invoke + 392
+14 libdispatch.dylib              0x14dac _dispatch_root_queue_drain_deferred_wlh + 284
+15 libdispatch.dylib              0x146ac _dispatch_workloop_worker_thread + 720
+16 libsystem_pthread.dylib        0x13b0 _pthread_wqthread + 292
+17 libsystem_pthread.dylib        0x8c0 start_wqthread + 8
+
+DartWorker
+0  libsystem_kernel.dylib         0x65e8 __psynch_cvwait + 8
+1  libsystem_pthread.dylib        0x2b74 _pthread_cond_wait + 1024
+2  Flutter                        0x53fb44 dart::ConditionVariable::WaitMicros(dart::Mutex*, long long) + 149 (synchronization_posix.cc:149)
+3  Flutter                        0x605d5c dart::ThreadPool::Worker::Main(unsigned long) + 112 (intrusive_dlist.h:112)
+4  Flutter                        0x5e45fc dart::ThreadStart(void*) + 94 (os_thread_macos.cc:94)
+5  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+6  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+DartWorker
+0  libsystem_kernel.dylib         0x65e8 __psynch_cvwait + 8
+1  libsystem_pthread.dylib        0x2b74 _pthread_cond_wait + 1024
+2  Flutter                        0x53fb44 dart::ConditionVariable::WaitMicros(dart::Mutex*, long long) + 149 (synchronization_posix.cc:149)
+3  Flutter                        0x605d5c dart::ThreadPool::Worker::Main(unsigned long) + 112 (intrusive_dlist.h:112)
+4  Flutter                        0x5e45fc dart::ThreadStart(void*) + 94 (os_thread_macos.cc:94)
+5  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+6  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+DartWorker
+0  libsystem_kernel.dylib         0x65e8 __psynch_cvwait + 8
+1  libsystem_pthread.dylib        0x2b74 _pthread_cond_wait + 1024
+2  Flutter                        0x53fb44 dart::ConditionVariable::WaitMicros(dart::Mutex*, long long) + 149 (synchronization_posix.cc:149)
+3  Flutter                        0x605d5c dart::ThreadPool::Worker::Main(unsigned long) + 112 (intrusive_dlist.h:112)
+4  Flutter                        0x5e45fc dart::ThreadStart(void*) + 94 (os_thread_macos.cc:94)
+5  libsystem_pthread.dylib        0x4438 _pthread_start + 136
+6  libsystem_pthread.dylib        0x8cc thread_start + 8
+
+Thread
+0  libsystem_kernel.dylib         0xa80 __workq_kernreturn + 8
+1  libsystem_pthread.dylib        0x13fc _pthread_wqthread + 368
+2  libsystem_pthread.dylib        0x8c0 start_wqthread + 8
