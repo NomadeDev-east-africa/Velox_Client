@@ -93,11 +93,6 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
       }
       _groupSelections.add(selected);
     }
-    // Un groupe boissons `single + required` vient d'être présélectionné comme
-    // les autres. Si la formule par défaut n'est pas « Menu », le groupe est
-    // masqué : la boisson partirait dans le panier sans avoir été ni vue ni
-    // choisie.
-    if (!_isMenuSelected) _clearDrinkSelections();
   }
 
   int get _optionsSurcharge => _isDataDriven
@@ -107,113 +102,22 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
   int get _totalPrice =>
       ((_discountedBasePrice + _optionsSurcharge) * _quantity).round();
 
-  // ── TRI DES GROUPES (Formule/Taille → Sauces → Légumes → Suppléments) ──────
-  // Les groupes restent 100% pilotés par Firestore (nom/présence libres par
-  // restaurant) : on se contente de les réordonner par mot-clé quand ils sont
-  // présents sur ce plat, sans jamais en supposer l'existence.
-
-  static String _normalize(String s) => s
-      .toLowerCase()
-      .replaceAll(RegExp('[éèêë]'), 'e')
-      .replaceAll(RegExp('[àâ]'), 'a')
-      .replaceAll(RegExp('[ùû]'), 'u')
-      .replaceAll('ô', 'o')
-      .replaceAll(RegExp('[îï]'), 'i');
-
-  static int _categoryPriority(String name) {
-    final n = _normalize(name);
-    if (n.contains('formule') || n.contains('taille') || n.contains('format') || n.contains('size')) return 0;
-    // Les viandes juste après la formule : choix structurant du plat, à faire
-    // avant les sauces et les accompagnements.
-    if (_isMeatGroup(name)) return 1;
-    // Les boissons restent près de la formule qui les débloque : les reléguer en
-    // fin de liste ferait apparaître le groupe hors écran au clic sur Menu.
-    if (_isDrinksGroup(name)) return 2;
-    if (n.contains('sauce')) return 3;
-    if (n.contains('legume') || n.contains('veget')) return 4;
-    if (n.contains('supplement') || n.contains('extra')) return 5;
-    return 6;
-  }
-
-  /// Groupe de choix de viande / protéine.
-  static bool _isMeatGroup(String name) {
-    final n = _normalize(name);
-    return n.contains('viande') || n.contains('meat') || n.contains('proteine');
-  }
-
-  static bool _isSauceGroup(String name) => _normalize(name).contains('sauce');
-
-  static const _maxIncludedSauces = 2;
-
-  // ── BOISSONS INCLUSES (liées à la formule « Menu ») ────────────────────────
-  // Les boissons ne sont offertes qu'avec la formule Menu : on masque le groupe
-  // tant que ce choix n'est pas coché. Toujours 100% data-driven — si le
-  // restaurant n'a pas de groupe boissons, il ne se passe simplement rien.
-
-  static bool _isDrinksGroup(String name) {
-    final n = _normalize(name);
-    return n.contains('boisson') || n.contains('drink');
-  }
-
-  /// Un groupe de formule est un groupe dont le nom contient « formule ».
-  static bool _isFormulaGroup(OptionGroup g) =>
-      _normalize(g.name).contains('formule');
-
-  /// Le choix qui débloque les boissons est celui nommé « menu ». Comparaison
-  /// insensible à la casse et aux accents : les données admin l'écrivent en
-  /// minuscule (« menu ») aussi bien qu'en « Menu ». « Menu Maxi » ne déclenche
-  /// pas (correspondance exacte du mot, pas un simple contains).
-  static bool _isMenuChoice(String name) => _normalize(name.trim()) == 'menu';
-
-  /// Vrai si un groupe formule a « menu » actuellement sélectionné.
-  bool get _isMenuSelected {
-    for (var gi = 0; gi < _optionGroups.length; gi++) {
-      final group = _optionGroups[gi];
-      if (!_isFormulaGroup(group)) continue;
-      for (final ci in _groupSelections[gi]) {
-        if (_isMenuChoice(group.choices[ci].name)) return true;
-      }
-    }
-    return false;
-  }
-
-  /// Un groupe boissons ne s'affiche que si « Menu » est coché.
-  bool _isGroupVisible(int groupIndex) =>
-      !_isDrinksGroup(_optionGroups[groupIndex].name) || _isMenuSelected;
-
-  List<int> get _sortedGroupIndices {
-    final indices = List<int>.generate(_optionGroups.length, (i) => i);
-    indices.sort((a, b) {
-      final pa = _categoryPriority(_optionGroups[a].name);
-      final pb = _categoryPriority(_optionGroups[b].name);
-      if (pa != pb) return pa.compareTo(pb);
-      return a.compareTo(b);
-    });
-    return indices;
-  }
+  // ── RÈGLE D'OR : AFFICHER LE CONTRAT ADMIN, RIEN DE PLUS ───────────────────
+  // Les groupes sont rendus dans l'ORDRE EXACT du tableau `optionGroups` de
+  // Firestore, tous visibles, sans aucune règle métier déduite du nom du groupe.
+  // Le nom d'un groupe est un texte libre saisi par chaque restaurant : la prod
+  // contient « Shake, Juice & Drink », « Hot Berevage », « Roti/Bread »,
+  // « Envie d'une Gauffre ? »… — toute heuristique par mot-clé y échoue en
+  // silence. Seule la présence/absence d'un champ pilote l'affichage, jamais son
+  // libellé. (Le seul usage restant du nom est le rangement des choix « sauce »
+  // dans `sauces` au moment de construire le panier — pur format de stockage
+  // pour l'app resto, invisible à l'écran, cf. `OptionSelection.toCart`.)
 
   // ── SÉLECTION DATA-DRIVEN ───────────────────────────────────────────────────
 
   void _toggleChoice(int groupIndex, int choiceIndex) {
     final group = _optionGroups[groupIndex];
     final selected = _groupSelections[groupIndex];
-
-    if (!group.isSingle &&
-        _isSauceGroup(group.name) &&
-        !selected.contains(choiceIndex) &&
-        selected.length >= _maxIncludedSauces) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          content: Text(
-            'Maximum 2 sauces incluses. Pour plus de sauces, voir Suppléments.',
-            style: TextStyle(color: _c.onSurface),
-          ),
-          backgroundColor: _c.surfaceHigh,
-          behavior: SnackBarBehavior.floating,
-        ));
-      return;
-    }
 
     // Plafond générique piloté par l'admin (`maxChoices`, groupes `multiple`
     // uniquement). 0 = illimité. Bloque l'ajout au-delà, comme l'app Android.
@@ -252,31 +156,15 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
           selected.add(choiceIndex);
         }
       }
-
-      // Quitter la formule Menu doit oublier la boisson : sinon elle reste
-      // sélectionnée en mémoire alors que le groupe a disparu de l'écran, et
-      // part quand même dans la commande.
-      if (_isFormulaGroup(group) && !_isMenuSelected) {
-        _clearDrinkSelections();
-      }
     });
   }
 
-  void _clearDrinkSelections() {
-    for (var gi = 0; gi < _optionGroups.length; gi++) {
-      if (_isDrinksGroup(_optionGroups[gi].name)) {
-        _groupSelections[gi].clear();
-      }
-    }
-  }
-
   /// Premier groupe requis sans sélection, ou `null` si tout est valide.
-  /// Les groupes masqués sont ignorés : un groupe boissons `required` bloquerait
-  /// sinon l'ajout au panier en réclamant un choix invisible à l'écran.
+  /// Tous les groupes sont affichés, donc tous sont vérifiés : plus aucun choix
+  /// requis ne peut être réclamé sans être visible à l'écran.
   OptionGroup? _firstUnsatisfiedRequiredGroup() {
     for (var gi = 0; gi < _optionGroups.length; gi++) {
       final group = _optionGroups[gi];
-      if (!_isGroupVisible(gi)) continue;
       if (group.required && _groupSelections[gi].isEmpty) return group;
     }
     return null;
@@ -855,11 +743,12 @@ class _AddToOrderScreenState extends ConsumerState<AddToOrderScreen> {
                   _buildHeroImage(),
                   _buildPriceAndQuantity(),
                   // Plat sans optionGroups : aucune section d'options affichée.
-                  // Les boissons incluses n'apparaissent qu'avec la formule Menu.
+                  // Sinon : TOUS les groupes, dans l'ordre exact de Firestore.
                   if (_isDataDriven)
-                    ..._sortedGroupIndices
-                        .where(_isGroupVisible)
-                        .map(_buildGroupSection),
+                    ...List.generate(
+                      _optionGroups.length,
+                      _buildGroupSection,
+                    ),
                   const SizedBox(height: 24),
                 ],
               ),
