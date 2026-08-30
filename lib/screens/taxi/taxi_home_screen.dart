@@ -622,23 +622,6 @@ class _TaxiHomeScreenState extends ConsumerState<TaxiHomeScreen>
           const Text('Velox', style: TextStyle(color: kNeonGreen, fontSize: 22, fontWeight: FontWeight.bold)),
         ],
       ),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 12),
-          child: Container(
-            decoration: BoxDecoration(
-              color: _c.surface,
-              shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:0.05), blurRadius: 8, offset: const Offset(0, 2))],
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.notifications_none),
-              color: _c.onSurfaceVariant,
-              onPressed: () {},
-            ),
-          ),
-        ),
-      ],
     );
   }
 

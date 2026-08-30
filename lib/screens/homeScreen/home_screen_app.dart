@@ -7,6 +7,7 @@ import 'package:nomade_client/screens/taxi/taxi_home_screen.dart';
 import 'package:nomade_client/screens/food/home_food/home_screen_food.dart';
 import 'package:nomade_client/screens/profile/profile_screen.dart';
 import 'package:nomade_client/screens/history/order_history_screen.dart';
+import 'package:nomade_client/screens/notifications/notifications_screen.dart';
 import 'package:nomade_client/theme/app_colors.dart';
 import 'package:nomade_client/translations/app_translations.dart';
 
@@ -473,6 +474,9 @@ class _HomeScreenAppState extends ConsumerState<HomeScreenApp> {
   // ── ACTIONS RAPIDES ───────────────────────────────────────────────────────
   Widget _buildQuickActions(AppColors c) {
     final isAuthenticated = ref.watch(userNotifierProvider).isAuthenticated;
+    // Vaut 0 pour un invité (le flux d'historique est vide sans uid), donc
+    // aucune pastille ne s'affiche avant connexion.
+    final unread = ref.watch(unreadNotificationsCountProvider);
     final actions = [
       {
         'icon': Icons.history_rounded,
@@ -482,6 +486,19 @@ class _HomeScreenAppState extends ConsumerState<HomeScreenApp> {
           MaterialPageRoute(
             builder: (_) => isAuthenticated
                 ? const OrderHistoryScreen()
+                : const SignInScreen(),
+          ),
+        ),
+      },
+      {
+        'icon': Icons.notifications_none_rounded,
+        'label': tr('notifications'),
+        'badge': unread,
+        'onTap': () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => isAuthenticated
+                ? const NotificationsScreen()
                 : const SignInScreen(),
           ),
         ),
@@ -524,8 +541,7 @@ class _HomeScreenAppState extends ConsumerState<HomeScreenApp> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(action['icon'] as IconData,
-                            color: c.primary, size: 26),
+                        _buildActionIcon(action, c),
                         const SizedBox(height: 8),
                         Text(
                           action['label'] as String,
@@ -541,6 +557,44 @@ class _HomeScreenAppState extends ConsumerState<HomeScreenApp> {
                 ),
               );
             }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Icône d'une action rapide, surmontée de la pastille de non-lus quand
+  /// l'action en déclare une. Rien ne s'affiche à zéro : une pastille vide
+  /// serait du bruit (même règle que dans le Profil).
+  Widget _buildActionIcon(Map<String, Object> action, AppColors c) {
+    final icon = Icon(action['icon'] as IconData, color: c.primary, size: 26);
+    final badge = action['badge'] as int? ?? 0;
+    if (badge == 0) return icon;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        icon,
+        Positioned(
+          top: -4,
+          right: -8,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            constraints: const BoxConstraints(minWidth: 18),
+            decoration: BoxDecoration(
+              color: c.primary,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: c.surface, width: 1.5),
+            ),
+            child: Text(
+              badge > 99 ? '99+' : '$badge',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: c.onPrimary,
+              ),
+            ),
           ),
         ),
       ],
